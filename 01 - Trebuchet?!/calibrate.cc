@@ -62,6 +62,7 @@ void part2(const char *name) {
                         if (first == -1) {
                             first = last;
                         }
+                        break;
                     }
                 }
             }
