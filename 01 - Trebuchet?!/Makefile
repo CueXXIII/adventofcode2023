@@ -1,7 +1,7 @@
 SRC=calibrate.cc
 
 CPPFLAGS=-I../common
-CXXFLAGS=-std=c++23 -O3 -flto=auto -Wall -Wextra -Wpedantic -Wconversion -Wshadow=local  -g3 -ggdb3
+CXXFLAGS=-std=c++23 -O3 -march=native -flto=auto -ffat-lto-objects -Wall -Wextra -Wpedantic -Wconversion -Wshadow=local  -g3 -ggdb3
 
 # tbb: enable more parallel execution for stdlib
 # fmt: provides ::format and ::print in NS fmt, not yet in std
