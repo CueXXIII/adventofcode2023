@@ -5,6 +5,7 @@
 #include <iostream>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "simpleparser.hpp"
@@ -44,9 +45,10 @@ const std::array<std::pair<const std::string, const int>, 9> digits = {
 
 void part2(const char *name) {
     std::ifstream infile{name};
-    std::string line;
+    std::string line_in;
     int sum = 0;
-    while (std::getline(infile, line)) {
+    while (std::getline(infile, line_in)) {
+        const std::string_view line{line_in};
         int first = -1;
         int last = -1;
         for (const auto pos : iota(0u, line.size())) {
