@@ -22,39 +22,18 @@ const std::array<std::pair<const std::string, const int>, 9> digits = {
      {"eight", 8},
      {"nine", 9}}};
 
-std::pair<int, int> scan_left(const std::string_view &line) {
+std::pair<int, int> scan_for_digit(const std::string_view &line, auto counter) {
     std::optional<int> any_digit{};
-    for (const auto pos : iota(0u, line.size())) {
-        if (std::isdigit(line[pos])) {
-            const int numeric_digit = line[pos] - '0';
+    for (auto pos = counter(); pos; pos = counter()) {
+        if (std::isdigit(line[*pos])) {
+            const int numeric_digit = line[*pos] - '0';
             if (!any_digit) {
                 any_digit = numeric_digit;
             }
             return {numeric_digit, *any_digit};
         } else if (!any_digit) {
             for (const auto &[digstr, digval] : digits) {
-                if (line.substr(pos).starts_with(digstr)) {
-                    any_digit = digval;
-                    break;
-                }
-            }
-        }
-    }
-    return {0, any_digit.value_or(0)};
-}
-
-std::pair<int, int> scan_right(const std::string_view &line) {
-    std::optional<int> any_digit{};
-    for (auto pos = line.size() - 1; pos + 1 != 0; --pos) {
-        if (std::isdigit(line[pos])) {
-            const int numeric_digit = line[pos] - '0';
-            if (!any_digit) {
-                any_digit = numeric_digit;
-            }
-            return {numeric_digit, *any_digit};
-        } else if (!any_digit) {
-            for (const auto &[digstr, digval] : digits) {
-                if (line.substr(pos).starts_with(digstr)) {
+                if (line.substr(*pos).starts_with(digstr)) {
                     any_digit = digval;
                     break;
                 }
@@ -75,8 +54,25 @@ int main(int argc, char **argv) {
     int sum2 = 0;
     while (std::getline(infile, line)) {
         const std::string_view line_v{line};
-        const auto [part1left, part2left] = scan_left(line_v);
-        const auto [part1right, part2right] = scan_right(line_v);
+
+        const auto count_up =
+            [i = 0u, s = line.size()] mutable -> std::optional<size_t> {
+            if (i < s) {
+                return {i++};
+            }
+            return {};
+        };
+        const auto [part1left, part2left] = scan_for_digit(line_v, count_up);
+
+        const auto count_down =
+            [i = line.size()] mutable -> std::optional<size_t> {
+            if (i > 0u) {
+                return {--i};
+            }
+            return {};
+        };
+        const auto [part1right, part2right] =
+            scan_for_digit(line_v, count_down);
 
         sum1 += part1left * 10 + part1right;
         sum2 += part2left * 10 + part2right;
