@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
             while (std::isdigit(scanner.peekChar())) {
                 const auto amount = scanner.getInt64();
                 // read color name + /[,;]*/
-                const auto color = scanner.getToken();
+                const auto color = scanner.getAlNum();
                 switch (color[0]) {
                 case 'r':
                     set.x += amount;
@@ -55,7 +55,8 @@ int main(int argc, char **argv) {
                     break;
                 }
                 // set continues with ,
-                if (color[color.size() - 1] != ',') {
+                if (!scanner.skipChar(',')) {
+                    scanner.skipChar(';');
                     break;
                 }
             }
