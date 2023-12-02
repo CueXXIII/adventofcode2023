@@ -12,11 +12,7 @@
 
 using std::views::iota;
 
-const auto RedMax = 12;
-const auto GreenMax = 13;
-const auto BlueMax = 14;
-
-static constexpr auto Max = Vec3(12, 13, 14);
+static constexpr auto Max1 = Vec3(12, 13, 14);
 
 struct Game {
     int64_t id;
@@ -29,8 +25,8 @@ int main(int argc, char **argv) {
         std::exit(EXIT_FAILURE);
     }
 
-    std::vector<Game> games{};
     int64_t validIdSum = 0;
+    int64_t gamePower = 0;
 
     SimpleParser scanner{argv[1]};
     while (!scanner.isEof()) {
@@ -68,14 +64,16 @@ int main(int argc, char **argv) {
                 }
             }
             current.sets.emplace_back(set);
-            if (set.x > Max.x or set.y > Max.y or set.z > Max.z) {
+            if (set.x > Max1.x or set.y > Max1.y or set.z > Max1.z) {
                 validGame = false;
             }
         }
-        games.emplace_back(current);
         if (validGame) {
             validIdSum += current.id;
         }
+        const auto [_, max] = boundingBox(current.sets);
+        gamePower += max.x * max.y * max.z;
     }
     fmt::print("The valid GameIDs sum to {}\n", validIdSum);
+    fmt::print("The gamepower of the elf is {}\n", gamePower);
 }
