@@ -1,18 +1,14 @@
-#include <algorithm>
 #include <cctype>
 #include <fmt/format.h>
 #include <fstream>
 #include <iostream>
-#include <ranges>
 #include <string>
 #include <vector>
 
 #include "simpleparser.hpp"
 #include "vec3.hpp"
 
-using std::views::iota;
-
-static constexpr auto Max1 = Vec3(12, 13, 14);
+static constexpr auto BagMax = Vec3(12, 13, 14);
 
 struct Game {
     int64_t id;
@@ -64,15 +60,15 @@ int main(int argc, char **argv) {
                 }
             }
             current.sets.emplace_back(set);
-            if (set.x > Max1.x or set.y > Max1.y or set.z > Max1.z) {
+            if (set.x > BagMax.x or set.y > BagMax.y or set.z > BagMax.z) {
                 validGame = false;
             }
         }
         if (validGame) {
             validIdSum += current.id;
         }
-        const auto [_, max] = boundingBox(current.sets);
-        gamePower += max.x * max.y * max.z;
+        const auto [_, ballsMax] = boundingBox(current.sets);
+        gamePower += ballsMax.x * ballsMax.y * ballsMax.z;
     }
     fmt::print("The valid GameIDs sum to {}\n", validIdSum);
     fmt::print("The gamepower of the elf is {}\n", gamePower);
