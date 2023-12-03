@@ -11,6 +11,5 @@
 inline auto timeNow() { return std::chrono::high_resolution_clock::now(); }
 
 inline auto timeDiff(const auto &from, const auto &to) {
-    return std::chrono::duration_cast<std::chrono::duration<double>>(to - from)
-        .count();
+    return std::chrono::duration_cast<std::chrono::duration<double>>(to - from).count();
 }

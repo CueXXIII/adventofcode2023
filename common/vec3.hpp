@@ -86,7 +86,9 @@ template <typename iter>
 concept isVec3Iterable = is_instantiation_of<Vec3, typename iter::value_type>::value;
 
 template <typename iterable>
-constexpr auto boundingBox(iterable &container) requires isVec3Iterable<iterable> {
+constexpr auto boundingBox(iterable &container)
+    requires isVec3Iterable<iterable>
+{
     auto it = container.begin();
     auto min{*it};
     auto max{*it};

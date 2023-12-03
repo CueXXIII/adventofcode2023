@@ -13,9 +13,7 @@ template <typename T> constexpr T manhattan(const Vec3<T> &from, const Vec3<T> &
 }
 
 // signum for numbers
-template <typename T> constexpr T signum(const T num) {
-    return (T{0} < num) - (num < T{0});
-}
+template <typename T> constexpr T signum(const T num) { return (T{0} < num) - (num < T{0}); }
 
 // signum for vectors: creates a signum per dimension
 template <typename T> constexpr Vec2<T> signum(const Vec2<T> &vec) {

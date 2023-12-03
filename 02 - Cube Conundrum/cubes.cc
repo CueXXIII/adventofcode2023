@@ -50,8 +50,7 @@ int main(int argc, char **argv) {
                     set.z += amount;
                     break;
                 default:
-                    fmt::print("Unknown color {} in id {}\n", color,
-                               current.id);
+                    fmt::print("Unknown color {} in id {}\n", color, current.id);
                     break;
                 }
                 // set continues with ,

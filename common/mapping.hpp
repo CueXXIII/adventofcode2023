@@ -14,15 +14,11 @@ template <typename T> struct Mapping {
     int64_t height{};
     const T empty{};
 
-    inline bool validPos(const Vec2<int64_t> &pos) const {
-        return validPos(pos.x, pos.y);
-    }
+    inline bool validPos(const Vec2<int64_t> &pos) const { return validPos(pos.x, pos.y); }
     inline bool validPos(const int64_t x, const int64_t y) const {
         return x >= 0 and y >= 0 and x < height and y < height;
     }
-    inline size_t index(const Vec2<int64_t> &pos) const {
-        return index(pos.x, pos.y);
-    }
+    inline size_t index(const Vec2<int64_t> &pos) const { return index(pos.x, pos.y); }
     inline size_t index(const int64_t x, const int64_t y) const {
         return static_cast<size_t>(x + y * width);
     }
@@ -71,8 +67,7 @@ template <typename T> struct Mapping {
     }
 };
 
-constexpr std::array<Vec2<int64_t>, 4> neighbours4{
-    {{-1, 0}, {0, -1}, {0, 1}, {1, 0}}};
+constexpr std::array<Vec2<int64_t>, 4> neighbours4{{{-1, 0}, {0, -1}, {0, 1}, {1, 0}}};
 
 constexpr std::array<Vec2<int64_t>, 8> neighbours8{
     {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}}};

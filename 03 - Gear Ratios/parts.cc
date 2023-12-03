@@ -19,8 +19,8 @@ struct Schema {
     std::map<int64_t, int64_t> foundNumbers{};
 
     Schema(const char *filename)
-        : schematic(filename, '.'), width(schematic.width),
-          height(schematic.height), numberId{width, height} {
+        : schematic(filename, '.'), width(schematic.width), height(schematic.height),
+          numberId{width, height} {
         findSymbols();
     }
 
@@ -37,12 +37,10 @@ struct Schema {
                                 ++freeId;
                                 numberId[pos] = freeId;
                                 // expand number to left/right
-                                for (auto d = -1;
-                                     std::isdigit(schematic[x + d, y]); --d) {
+                                for (auto d = -1; std::isdigit(schematic[x + d, y]); --d) {
                                     numberId[x + d, y] = freeId;
                                 }
-                                for (auto d = 1;
-                                     std::isdigit(schematic[x + d, y]); ++d) {
+                                for (auto d = 1; std::isdigit(schematic[x + d, y]); ++d) {
                                     numberId[x + d, y] = freeId;
                                 }
                             }
