@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <concepts>
+#include <fmt/format.h>
 #include <fstream>
 
 #include "vec2.hpp"
