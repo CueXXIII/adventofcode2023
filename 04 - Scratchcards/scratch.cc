@@ -1,11 +1,9 @@
-#include <algorithm>
 #include <fmt/format.h>
-#include <fstream>
 #include <iostream>
+#include <map>
 #include <ranges>
 #include <set>
 #include <string>
-#include <vector>
 
 #include "simpleparser.hpp"
 
@@ -18,10 +16,13 @@ int main(int argc, char **argv) {
     }
 
     SimpleParser scanner{argv[1]};
+    std::map<int64_t, int64_t> cardCount{};
     int64_t totalScore = 0;
+    int64_t totalCards = 0;
     while (!scanner.isEof()) {
         scanner.skipToken("Card");
         const auto card = scanner.getInt64();
+        ++cardCount[card];
         scanner.skipChar(':');
         std::set<int64_t> winning{};
         while (!scanner.skipChar('|')) {
@@ -36,7 +37,12 @@ int main(int argc, char **argv) {
         }
         const auto points = wins > 0 ? 1 << (wins - 1) : 0;
         totalScore += points;
-        fmt::print("Card {} scores {} points\n", card, points);
+
+        for (const auto id : iota(card + 1, card + wins + 1)) {
+            cardCount[id] += cardCount[card];
+        }
+        totalCards += cardCount[card];
     }
     fmt::print("You have {} points\n", totalScore);
+    fmt::print("You have {} cards\n", totalCards);
 }
