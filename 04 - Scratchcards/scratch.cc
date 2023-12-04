@@ -1,6 +1,7 @@
 #include <fmt/format.h>
+#include <functional>
 #include <iostream>
-#include <map>
+#include <queue>
 #include <ranges>
 #include <set>
 #include <string>
@@ -16,32 +17,37 @@ int main(int argc, char **argv) {
     }
 
     SimpleParser scanner{argv[1]};
-    std::map<int64_t, int64_t> cardCount{};
+    std::priority_queue<std::pair<int64_t, int64_t>> wonCards{};
+    std::set<int64_t> winningNumbers{};
     int64_t totalScore = 0;
     int64_t totalCards = 0;
     while (!scanner.isEof()) {
         scanner.skipToken("Card");
-        const auto card = scanner.getInt64();
-        ++cardCount[card];
+        const auto cardId = scanner.getInt64();
+        int64_t cardCount = 1;
+        while (!wonCards.empty() and wonCards.top().first == -cardId) {
+            cardCount += wonCards.top().second;
+            wonCards.pop();
+        }
         scanner.skipChar(':');
-        std::set<int64_t> winning{};
+        winningNumbers.clear();
         while (!scanner.skipChar('|')) {
-            winning.insert(scanner.getInt64());
+            winningNumbers.insert(scanner.getInt64());
         }
         int64_t wins = 0;
         while (!scanner.isEof() and scanner.peekChar() != 'C') {
             const auto number = scanner.getInt64();
-            if (winning.contains(number)) {
+            if (winningNumbers.contains(number)) {
                 ++wins;
             }
         }
         const auto points = wins > 0 ? 1 << (wins - 1) : 0;
         totalScore += points;
 
-        for (const auto id : iota(card + 1, card + wins + 1)) {
-            cardCount[id] += cardCount[card];
+        for (const auto wonId : iota(cardId + 1, cardId + wins + 1)) {
+            wonCards.emplace(-wonId, cardCount);
         }
-        totalCards += cardCount[card];
+        totalCards += cardCount;
     }
     fmt::print("You have {} points\n", totalScore);
     fmt::print("You have {} cards\n", totalCards);
