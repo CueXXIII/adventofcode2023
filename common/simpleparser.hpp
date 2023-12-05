@@ -49,6 +49,7 @@ class SimpleParser {
     int64_t getInt64();
     std::string getToken(const char terminate = '\0');
     std::string getAlNum();
+    std::string getLine();
 
     char peekChar();
 
@@ -93,6 +94,15 @@ std::string SimpleParser::getAlNum() {
     while (end < buffer.size() && std::isalnum(buffer[end])) {
         ++end;
     }
+    auto token = buffer.substr(pos, end - pos);
+    pos = end;
+    bufferSaturate();
+    return token;
+}
+
+std::string SimpleParser::getLine() {
+    skipWhitespace();
+    auto end = buffer.size();
     auto token = buffer.substr(pos, end - pos);
     pos = end;
     bufferSaturate();
