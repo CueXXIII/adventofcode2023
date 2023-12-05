@@ -7,7 +7,7 @@
 
 #include "vec2.hpp"
 
-template <typename T> struct Mapping {
+template <typename T> struct Grid {
     std::vector<T> data{};
     T outside{};
     int64_t width{};
@@ -23,8 +23,8 @@ template <typename T> struct Mapping {
         return static_cast<size_t>(x + y * width);
     }
 
-    Mapping() = default;
-    Mapping(const char *filename, T empty = {}) : empty(empty) {
+    Grid() = default;
+    Grid(const char *filename, T empty = {}) : empty(empty) {
         std::ifstream infile{filename};
         std::string line;
         while (std::getline(infile, line)) {
@@ -34,7 +34,7 @@ template <typename T> struct Mapping {
             data.insert(data.end(), line.begin(), line.end());
         }
     }
-    Mapping(int64_t width, int64_t height, T value = {}, T empty = {})
+    Grid(int64_t width, int64_t height, T value = {}, T empty = {})
         : width(width), height(height), empty(empty) {
         data.resize(width * height, value);
     }

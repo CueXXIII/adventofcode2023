@@ -5,17 +5,17 @@
 #include <ranges>
 #include <set>
 
-#include "mapping.hpp"
+#include "grid.hpp"
 #include "vec2.hpp"
 
 using std::views::iota;
 
 struct Schema {
-    Mapping<char> schematic{};
+    Grid<char> schematic{};
     int64_t width{};
     int64_t height{};
 
-    Mapping<int64_t> numberId{};
+    Grid<int64_t> numberId{};
     std::map<int64_t, int64_t> foundNumbers{};
 
     Schema(const char *filename)
