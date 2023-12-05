@@ -27,4 +27,15 @@ git add Makefile example.txt
 git commit -m "day $day skeleton"
 
 gvim $obj.cc
+
+if [ -f ../cookies.txt ]; then
+    wget --load-cookies ../cookies.txt -O input.txt https://adventofcode.com/2023/day/$day/input
+    if [ -f input.txt ]; then
+	# let's look at our input
+        cat input.txt
+	echo
+        ls -l input.txt
+    fi
+fi
+
 exec bash

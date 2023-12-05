@@ -2,3 +2,4 @@
 *.o
 Makefile.deps
 input.txt
+cookies.txt
