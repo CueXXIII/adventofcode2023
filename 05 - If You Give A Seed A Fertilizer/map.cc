@@ -138,13 +138,9 @@ int main(int argc, char **argv) {
     }
     fmt::print("Lowest location for {} seeds is {}\n", seeds.size(), min_location);
 
-    min_location = std::numeric_limits<int64_t>::max();
-    for (auto location : seedPairs) {
-        std::vector<LocationRange> locations{location};
-        for (const auto &mapper : mappings) {
-            locations = mapper.map(locations);
-        }
-        min_location = std::min(min_location, minSeed(locations));
+    for (const auto &mapper : mappings) {
+        seedPairs = mapper.map(seedPairs);
     }
+    min_location = minSeed(seedPairs);
     fmt::print("Lowest location for all seeds is {}\n", min_location);
 }
