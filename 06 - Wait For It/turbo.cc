@@ -15,10 +15,26 @@ struct RaceType {
     int64_t record;
 };
 
-int64_t race_length(int64_t time, int64_t hold) {
+int64_t raceLength(const int64_t time, const int64_t hold) {
     const int64_t run = time - hold;
     return hold * run;
     // return -1 * hold * hold + time * hold;
+}
+
+int64_t findFirstWin(const RaceType &race) {
+    for (const auto hold : iota(1, race.time)) {
+        if (raceLength(race.time, hold) > race.record) {
+            return hold;
+        }
+    }
+    fmt::print("Error: no win in {}ms\n", race.time);
+    return race.time;
+}
+
+int64_t findWinningGames(const RaceType &race) {
+    const auto first = findFirstWin(race);
+    const auto last = race.time - first;
+    return last - first + 1;
 }
 
 int main(int argc, char **argv) {
@@ -50,21 +66,9 @@ int main(int argc, char **argv) {
 
     int64_t prod1 = 1;
     for (const auto &race : competition) {
-        int64_t won = 0;
-        for (const auto hold : iota(1, race.time)) {
-            if (race_length(race.time, hold) > race.record) {
-                ++won;
-            }
-        }
-        prod1 *= won;
+        prod1 *= findWinningGames(race);
     }
     fmt::print("Answer: {} [Submit]\n", prod1);
 
-    int64_t won2 = 0;
-    for (const auto hold : iota(1, competition2.time)) {
-        if (race_length(competition2.time, hold) > competition2.record) {
-            ++won2;
-        }
-    }
-    fmt::print("Answer: {} [Submit]\n", won2);
+    fmt::print("Answer: {} [Submit]\n", findWinningGames(competition2));
 }
