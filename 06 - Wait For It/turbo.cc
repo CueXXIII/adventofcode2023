@@ -21,12 +21,27 @@ int64_t raceLength(const int64_t time, const int64_t hold) {
     // return -1 * hold * hold + time * hold;
 }
 
+int64_t raceDeriv(const int64_t time, const int64_t hold) { return -2 * hold + time; }
+
 int64_t findFirstWin(const RaceType &race) {
-    for (const auto hold : iota(1, race.time)) {
-        if (raceLength(race.time, hold) > race.record) {
-            return hold;
+    int64_t hold_n = 0;
+    int64_t length_n = raceLength(race.time, hold_n);
+    // fmt::print("x_0: f({}) = {}\n", hold_n, length_n);
+    while (true) {
+        const int64_t hold_n1 = hold_n - (length_n - race.record) / raceDeriv(race.time, hold_n);
+        if (hold_n == hold_n1) {
+            while (length_n <= race.record) {
+                ++hold_n;
+                length_n = raceLength(race.time, hold_n);
+                // fmt::print("inc: f({}) = {}\n", hold_n, length_n);
+            }
+            return hold_n;
         }
+        hold_n = hold_n1;
+        length_n = raceLength(race.time, hold_n);
+        // fmt::print("x_n: f({}) = {}\n", hold_n, length_n);
     }
+    // this is currently not reached, races that can't be won don't finish
     fmt::print("Error: no win in {}ms\n", race.time);
     return race.time;
 }
