@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
     int64_t totalScore = 0;
     int64_t totalCards = 0;
     while (!scanner.isEof()) {
-        scanner.skipToken("Card");
+        scanner.getToken();
         const auto cardId = scanner.getInt64();
         int64_t cardCount = 1;
         while (!wonCards.empty() and wonCards.top().first == -cardId) {
@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
             winningNumbers.insert(scanner.getInt64());
         }
         int64_t wins = 0;
-        while (!scanner.isEof() and scanner.peekChar() != 'C') {
+        while (!scanner.isEof() and std::isdigit(scanner.peekChar())) {
             const auto number = scanner.getInt64();
             if (winningNumbers.contains(number)) {
                 ++wins;
@@ -51,4 +51,12 @@ int main(int argc, char **argv) {
     }
     fmt::print("You have {} points\n", totalScore);
     fmt::print("You have {} cards\n", totalCards);
+    if (wonCards.size() > 0) {
+        fmt::print("Somehow you still have {} card packs:\n", wonCards.size());
+        while (wonCards.size() > 0) {
+            const auto &[game, num] = wonCards.top();
+            fmt::print("    {} cards with number {}\n", num, -game);
+            wonCards.pop();
+        }
+    }
 }
