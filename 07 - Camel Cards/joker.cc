@@ -116,7 +116,6 @@ int main(int argc, char **argv) {
     int64_t total1 = 0;
     int64_t rank = 1;
     for (const auto &hand : listOfHands) {
-        fmt::print("Hand {} {:3} * {:4}\n", static_cast<std::string>(hand), hand.bid, rank);
         total1 += hand.bid * rank;
         ++rank;
     }
