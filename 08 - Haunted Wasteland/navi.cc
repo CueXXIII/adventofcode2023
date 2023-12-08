@@ -19,8 +19,43 @@ struct Node {
     auto operator<=>(const Node &other) const { return name <=> other.name; }
 };
 
+struct Position {
+    std::string node;
+    size_t step;
+    auto operator<=>(const Position &other) const {
+        return std::pair(node, step) <=> std::pair(other.node, other.step);
+    }
+    bool operator!=(const Position &other) const {
+        return std::pair(node, step) != std::pair(other.node, other.step);
+    }
+};
+
+// from https://fmt.dev/latest/api.html#format-api
+template <> struct fmt::formatter<Position> {
+    constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+    template <typename FormatContext>
+    constexpr auto format(const Position &position, FormatContext &ctx) const
+        -> decltype(ctx.out()) {
+        return fmt::format_to(ctx.out(), "{}@{}", position.node, position.step);
+    }
+};
+
 std::map<std::string, Node> network;
 std::string directions{};
+
+std::string networkStep(const std::string &position, size_t step) {
+    switch (directions[step]) {
+    case 'L':
+        return network[position].left;
+        break;
+    case 'R':
+        return network[position].right;
+        break;
+    default:
+        fmt::print("Unknown direction\n");
+        return position;
+    }
+}
 
 void navi1();
 void navi2();
@@ -60,17 +95,7 @@ void navi1() {
     }
 
     while (position != "ZZZ") {
-        switch (directions[step]) {
-        case 'L':
-            position = network[position].left;
-            break;
-        case 'R':
-            position = network[position].right;
-            break;
-        default:
-            fmt::print("Unknown direction\n");
-            break;
-        }
+        position = networkStep(position, step);
         ++step;
         if (step == directions.size()) {
             step = 0;
@@ -82,41 +107,57 @@ void navi1() {
 }
 
 void navi2() {
-    std::vector<std::string> positions{};
-    for (const auto &[name, node] : network) {
-        if (name[2] == 'A') {
-            positions.emplace_back(name);
-            fmt::print("starting at {}\n", name);
-        }
-    }
-
     size_t ghostSteps = 1;
+    bool lcmIsSafe = true;
 
-    for (auto position : positions) {
-        size_t totalSteps = 0;
-        const auto starting_position = position;
+    for (auto &[name, _] : network) {
+        if (name[2] != 'A') {
+            continue;
+        }
+        auto position = Position{name, 0};
+        fmt::print("starting at {}\n", position);
+
+        const auto startingPosition = position;
         size_t step = 0;
-        while (position[2] != 'Z') {
-            switch (directions[step]) {
-            case 'L':
-                position = network[position].left;
-                break;
-            case 'R':
-                position = network[position].right;
-                break;
-            default:
-                fmt::print("Unknown direction\n");
-                break;
-            }
+
+        size_t prefixSteps = 0;
+        do {
+            position = Position{networkStep(position.node, step), step};
             ++step;
             if (step == directions.size()) {
                 step = 0;
             }
-            ++totalSteps;
+            ++prefixSteps;
+        } while (position.node[2] != 'Z');
+        const auto firstTerminalPosition = position;
+
+        size_t loopSteps = 0;
+        do {
+            position = Position{networkStep(position.node, step), step};
+            ++step;
+            if (step == directions.size()) {
+                step = 0;
+            }
+            ++loopSteps;
+            if (position.node[2] == 'Z' and position != firstTerminalPosition) {
+                fmt::print("CAUTION: Possible additional terminal at {}+{}\n", prefixSteps,
+                           loopSteps);
+                lcmIsSafe = false;
+            }
+        } while (position != firstTerminalPosition);
+
+        fmt::print("Ghost route from {} to {} took {} + {} * n steps\n", startingPosition, position,
+                   prefixSteps, loopSteps);
+
+        if (prefixSteps != loopSteps) {
+            fmt::print("CAUTION: prefix steps {} != loop steps {}\n", prefixSteps, loopSteps);
+            lcmIsSafe = false;
         }
-        fmt::print("Ghost route from {} to {} took {} steps\n", starting_position, position,
-                   totalSteps);
-        ghostSteps = std::lcm(ghostSteps, totalSteps);
+
+        ghostSteps = std::lcm(ghostSteps, prefixSteps);
     }
     fmt::print("Your ghost took {} steps\n", ghostSteps);
+    if (!lcmIsSafe) {
+        printf("CAUTION: Solution might be wrong!\n");
+    }
 }
