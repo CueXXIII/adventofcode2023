@@ -16,8 +16,8 @@ int main(int argc, char **argv) {
         std::exit(EXIT_FAILURE);
     }
 
-    SimpleParser scanner{argv[1]};
-    while(!scanner.isEof()) {
+    SimpleParser scan{argv[1]};
+    while(!scan.isEof()) {
     }
 
     std::ifstream infile{argv[1]};
