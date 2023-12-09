@@ -66,8 +66,15 @@ int main(int argc, char **argv) {
     int64_t expSum = 0;
     for (const auto &seq : OASIS) {
         const auto value = nextValue(seq);
-        fmt::print("Value = {}\n", value);
         expSum += value;
     }
-    fmt::print("Extrapolated Sum = {}\n", expSum);
+    fmt::print("Extrapolated next sum = {}\n", expSum);
+
+    expSum = 0;
+    for (auto &seq : OASIS) {
+        std::reverse(seq.begin(), seq.end());
+        const auto value = nextValue(seq);
+        expSum += value;
+    }
+    fmt::print("Extrapolated prev sum = {}\n", expSum);
 }
