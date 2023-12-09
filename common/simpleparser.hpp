@@ -12,10 +12,12 @@ class SimpleParser {
     std::string buffer;
     size_t pos;
     bool eof;
+    bool eol;
 
     void bufferSaturate() {
         while (!eof && pos >= buffer.size()) {
             eof = !std::getline(in, buffer);
+            eol = true;
             pos = 0;
         }
     }
@@ -29,6 +31,7 @@ class SimpleParser {
 
     void bufferNextChar() {
         if (!eof) {
+            eol = false;
             pos++;
             bufferSaturate();
         }
@@ -45,6 +48,7 @@ class SimpleParser {
     SimpleParser(const char *);
 
     bool isEof() const;
+    bool isEol() const;
 
     int64_t getInt64();
     std::string getToken(const char terminate = '\0');
@@ -58,19 +62,24 @@ class SimpleParser {
     bool skipToken(const std::string &);
 };
 
-SimpleParser::SimpleParser(std::ifstream &stream) : in(stream), buffer(""), pos(0), eof(false) {
+SimpleParser::SimpleParser(std::ifstream &stream)
+    : in(stream), buffer(""), pos(0), eof(false), eol(false) {
     bufferSaturate();
+    eol = false;
 }
 
 SimpleParser::SimpleParser(const char *infile)
-    : localStream(std::ifstream(infile)), in(localStream), buffer(""), pos(0), eof(false) {
+    : localStream(std::ifstream(infile)), in(localStream), buffer(""), pos(0), eof(false),
+      eol(false) {
     bufferSaturate();
+    eol = false;
 }
 
 int64_t SimpleParser::getInt64() {
     skipWhitespace();
     size_t processed;
     const int64_t value = std::stoll(buffer.substr(pos), &processed);
+    eol = false;
     pos += processed;
     bufferSaturate();
     return value;
@@ -83,6 +92,7 @@ std::string SimpleParser::getToken(const char terminate) {
         ++end;
     }
     auto token = buffer.substr(pos, end - pos);
+    eol = false;
     pos = end;
     bufferSaturate();
     return token;
@@ -95,6 +105,7 @@ std::string SimpleParser::getAlNum() {
         ++end;
     }
     auto token = buffer.substr(pos, end - pos);
+    eol = false;
     pos = end;
     bufferSaturate();
     return token;
@@ -110,6 +121,8 @@ std::string SimpleParser::getLine() {
 }
 
 bool SimpleParser::isEof() const { return eof; }
+
+bool SimpleParser::isEol() const { return eol; }
 
 char SimpleParser::peekChar() {
     skipWhitespace();
