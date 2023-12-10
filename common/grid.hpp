@@ -24,7 +24,7 @@ template <typename T> struct Grid {
     }
 
     Grid() = default;
-    Grid(const char *filename, T empty = {}) : empty(empty) {
+    Grid(const char *filename, T empty = T{}) : empty(empty) {
         std::ifstream infile{filename};
         std::string line;
         while (std::getline(infile, line)) {
@@ -34,7 +34,7 @@ template <typename T> struct Grid {
             data.insert(data.end(), line.begin(), line.end());
         }
     }
-    Grid(int64_t width, int64_t height, T value = {}, T empty = {})
+    Grid(int64_t width, int64_t height, T value = T{}, T empty = T{})
         : width(width), height(height), empty(empty) {
         data.resize(width * height, value);
     }
@@ -67,7 +67,7 @@ template <typename T> struct Grid {
     }
 };
 
-constexpr std::array<Vec2<int64_t>, 4> neighbours4{{{-1, 0}, {0, -1}, {0, 1}, {1, 0}}};
+constexpr std::array<Vec2<int64_t>, 4> neighbours4{{{1, 0}, {0, -1}, {-1, 0}, {0, 1}}};
 
 constexpr std::array<Vec2<int64_t>, 8> neighbours8{
     {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}}};
