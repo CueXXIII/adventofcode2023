@@ -68,7 +68,6 @@ int main(int argc, char **argv) {
 
     Grid<char> pipes1{argv[1], '.'};
 
-    // Grid<bool> visited1{pipes.width, pipes.height, false, false};
     std::unordered_set<Vec2l> visited1;
     Vec2l animal = findAnimal(pipes1);
     fmt::print("Animal starts at {}\n", animal);
@@ -104,37 +103,15 @@ int main(int argc, char **argv) {
     int64_t outside = 0;
     bool isInside = false;
 
-    bool onLoopFromNorth = false;
-    bool onLoopFromSouth = false;
     for (const auto y : iota(0, pipes1.height)) {
         for (const auto x : iota(0, pipes1.width)) {
             const Vec2l pos{x, y};
             if (visited1.contains(pos)) {
                 switch (pipes1[pos]) {
                 case '|':
-                    isInside = !isInside;
-                    break;
-                case '-':
-                    break;
                 case 'L':
-                    onLoopFromNorth = true;
-                    break;
                 case 'J':
-                    if (onLoopFromSouth) {
-                        isInside = !isInside;
-                    }
-                    onLoopFromNorth = false;
-                    onLoopFromSouth = false;
-                    break;
-                case '7':
-                    if (onLoopFromNorth) {
-                        isInside = !isInside;
-                    }
-                    onLoopFromNorth = false;
-                    onLoopFromSouth = false;
-                    break;
-                case 'F':
-                    onLoopFromSouth = true;
+                    isInside = !isInside;
                     break;
                 }
                 nest[pos] = pipes1[pos];
@@ -148,41 +125,42 @@ int main(int argc, char **argv) {
         }
     }
     fmt::print("There are {} tiles inside the loop and {} outside\n", inside, outside);
+
+    nest[animal] = 'S';
     for (const auto y : iota(0, pipes1.height)) {
         for (const auto x : iota(0, pipes1.width)) {
             const Vec2l pos{x, y};
-            if (pos == animal) {
+            switch (nest[pos]) {
+            case '|':
+                std::cout << "║";
+                break;
+            case '-':
+                std::cout << "═";
+                break;
+            case 'L':
+                std::cout << "╚";
+                break;
+            case 'J':
+                std::cout << "╝";
+                break;
+            case '7':
+                std::cout << "╗";
+                break;
+            case 'F':
+                std::cout << "╔";
+                break;
+            case 'I':
+                std::cout << "▒";
+                break;
+            case '.':
+                std::cout << ' ';
+                break;
+            case 'S':
                 std::cout << "♘";
-            } else {
-                switch (nest[pos]) {
-                case '|':
-                    std::cout << "║";
-                    break;
-                case '-':
-                    std::cout << "═";
-                    break;
-                case 'L':
-                    std::cout << "╚";
-                    break;
-                case 'J':
-                    std::cout << "╝";
-                    break;
-                case '7':
-                    std::cout << "╗";
-                    break;
-                case 'F':
-                    std::cout << "╔";
-                    break;
-                case 'I':
-                    std::cout << "▒";
-                    break;
-                case '.':
-                    std::cout << ' ';
-                    break;
-                default:
-                    std::cout << nest[pos];
-                    break;
-                }
+                break;
+            default:
+                std::cout << nest[pos];
+                break;
             }
         }
         std::cout << '\n';
