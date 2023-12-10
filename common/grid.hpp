@@ -16,7 +16,7 @@ template <typename T> struct Grid {
 
     inline bool validPos(const Vec2<int64_t> &pos) const { return validPos(pos.x, pos.y); }
     inline bool validPos(const int64_t x, const int64_t y) const {
-        return x >= 0 and y >= 0 and x < height and y < height;
+        return x >= 0 and y >= 0 and x < width and y < height;
     }
     inline size_t index(const Vec2<int64_t> &pos) const { return index(pos.x, pos.y); }
     inline size_t index(const int64_t x, const int64_t y) const {

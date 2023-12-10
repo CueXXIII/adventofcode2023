@@ -51,15 +51,23 @@ bool connected(const auto &grid, const Vec2l &a, const Vec2l &b) {
     return connectsTo(grid, a, b) and connectsTo(grid, b, a);
 }
 
+void replaceAnimalWithPipe(auto &grid, const Vec2l &src, const Vec2l &dst1, const Vec2l &dst2) {
+    for (const auto pipe : {'|', '-', 'L', 'J', '7', 'F'}) {
+        grid[src] = pipe;
+        if (connected(grid, src, dst1) and connected(grid, src, dst2)) {
+            return;
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <input.txt>\n";
         std::exit(EXIT_FAILURE);
     }
 
-    Grid<char> pipes{argv[1], '.'};
+    Grid<char> pipes1{argv[1], '.'};
 
-    auto pipes1 = pipes;
     // Grid<bool> visited1{pipes.width, pipes.height, false, false};
     std::unordered_set<Vec2l> visited1;
     Vec2l animal = findAnimal(pipes1);
@@ -72,8 +80,7 @@ int main(int argc, char **argv) {
             positions.push_back(dst);
         }
     }
-    fmt::print("Found {} pipes near the animal: {} and {}\n", positions.size(), positions[0],
-               positions[1]);
+    replaceAnimalWithPipe(pipes1, animal, positions[0], positions[1]);
 
     int64_t steps = 1;
     while (positions[0] != positions[1]) {
@@ -89,5 +96,63 @@ int main(int argc, char **argv) {
         }
         ++steps;
     }
+    visited1.insert(positions[0]);
     fmt::print("The farthest point from the animal is {} after {} steps.\n", positions[0], steps);
+
+    Grid<char> nest{pipes1.width, pipes1.height, '.'};
+    int64_t inside = 0;
+    int64_t outside = 0;
+    bool isInside = false;
+
+    bool onLoopFromNorth = false;
+    bool onLoopFromSouth = false;
+    for (const auto y : iota(0, pipes1.height)) {
+        for (const auto x : iota(0, pipes1.width)) {
+            const Vec2l pos{x, y};
+            if (visited1.contains(pos)) {
+                switch (pipes1[pos]) {
+                case '|':
+                    isInside = !isInside;
+                    break;
+                case '-':
+                    break;
+                case 'L':
+                    onLoopFromNorth = true;
+                    break;
+                case 'J':
+                    if (onLoopFromSouth) {
+                        isInside = !isInside;
+                    }
+                    onLoopFromNorth = false;
+                    onLoopFromSouth = false;
+                    break;
+                case '7':
+                    if (onLoopFromNorth) {
+                        isInside = !isInside;
+                    }
+                    onLoopFromNorth = false;
+                    onLoopFromSouth = false;
+                    break;
+                case 'F':
+                    onLoopFromSouth = true;
+                    break;
+                }
+                nest[pos] = pipes1[pos];
+            } else if (isInside) {
+                ++inside;
+                nest[pos] = 'I';
+            } else {
+                ++outside;
+                nest[pos] = '.';
+            }
+        }
+    }
+    fmt::print("There are {} tiles inside the loop and {} outside\n", inside, outside);
+    for (const auto y : iota(0, pipes1.height)) {
+        for (const auto x : iota(0, pipes1.width)) {
+            const Vec2l pos{x, y};
+            std::cout << nest[pos];
+        }
+        std::cout << '\n';
+    }
 }
