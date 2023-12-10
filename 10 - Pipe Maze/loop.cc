@@ -151,7 +151,39 @@ int main(int argc, char **argv) {
     for (const auto y : iota(0, pipes1.height)) {
         for (const auto x : iota(0, pipes1.width)) {
             const Vec2l pos{x, y};
-            std::cout << nest[pos];
+            if (pos == animal) {
+                std::cout << "♘";
+            } else {
+                switch (nest[pos]) {
+                case '|':
+                    std::cout << "║";
+                    break;
+                case '-':
+                    std::cout << "═";
+                    break;
+                case 'L':
+                    std::cout << "╚";
+                    break;
+                case 'J':
+                    std::cout << "╝";
+                    break;
+                case '7':
+                    std::cout << "╗";
+                    break;
+                case 'F':
+                    std::cout << "╔";
+                    break;
+                case 'I':
+                    std::cout << "▒";
+                    break;
+                case '.':
+                    std::cout << ' ';
+                    break;
+                default:
+                    std::cout << nest[pos];
+                    break;
+                }
+            }
         }
         std::cout << '\n';
     }
