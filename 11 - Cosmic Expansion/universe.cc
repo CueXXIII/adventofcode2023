@@ -11,88 +11,29 @@
 
 using std::views::iota;
 
-struct Universe {
-    Grid<char> observed{};
-    std::vector<bool> emptyX{};
-    std::vector<bool> emptyY{};
-    std::vector<Vec2l> galaxies{};
+int64_t distSum(auto &positions, const int64_t expansion = 2) {
+    int64_t sum = 0;
+    int64_t openDist = 0;
+    auto it = positions.begin();
+    auto current = *it;
+    int64_t count = 1;
 
-    int64_t realX(int64_t x1, int64_t x2, const int64_t expansion = 2) const {
-        int64_t add = 0;
-        if (x1 > x2) {
-            std::swap(x1, x2);
+    while (++it != positions.end()) {
+        const auto next = *it;
+
+        if (next == current) {
+            sum += openDist;
+            ++count;
+        } else {
+            const auto distToPrev = (next - current - 1) * expansion + 1;
+            openDist += count * distToPrev;
+            sum += openDist;
+            ++count;
         }
-        for (const auto x : iota(x1, x2)) {
-            if (emptyX[x]) {
-                ++add;
-            }
-        }
-        return x2 - x1 + add * (expansion - 1);
+        current = next;
     }
-
-    int64_t realY(int64_t y1, int64_t y2, const int64_t expansion = 2) const {
-        int64_t add = 0;
-        if (y1 > y2) {
-            std::swap(y1, y2);
-        }
-        for (const auto y : iota(y1, y2)) {
-            if (emptyY[y]) {
-                ++add;
-            }
-        }
-        return y2 - y1 + add * (expansion - 1);
-    }
-
-    Universe(const char *file) : observed(file) {
-        emptyX.resize(observed.width, true);
-        emptyY.resize(observed.height, true);
-        for (const auto y : iota(0, observed.height)) {
-            for (const auto x : iota(0, observed.width)) {
-                if (observed[x, y] == '#') {
-                    emptyX[x] = false;
-                    emptyY[y] = false;
-                    galaxies.emplace_back(x, y);
-                }
-            }
-        }
-    }
-
-    // returns sum of paths
-    int64_t findPaths(const int64_t expansion = 2) const {
-        int64_t sum = 0;
-
-        for (const auto from : iota(0u, galaxies.size())) {
-            for (const auto to : iota(from + 1, galaxies.size())) {
-
-                const auto lenX = realX(galaxies[from].x, galaxies[to].x, expansion);
-                const auto lenY = realY(galaxies[from].y, galaxies[to].y, expansion);
-                sum += lenX + lenY;
-                // fmt::print("Between galaxy {} and {}: {}\n", from + 1, to + 1, lenX + lenY);
-            }
-        }
-        return sum;
-    }
-
-    void printObserved() const {
-        fmt::print("Empty Columns: ");
-        for (const auto x : iota(0, observed.width)) {
-            if (emptyX[x]) {
-                fmt::print("{}, ", x);
-            }
-        }
-        fmt::print("\n");
-
-        fmt::print("Empty Rows: ");
-        for (const auto y : iota(0, observed.height)) {
-            if (emptyY[y]) {
-                fmt::print("{}, ", y);
-            }
-        }
-        fmt::print("\n");
-
-        fmt::print("{} galaxies\n", galaxies.size());
-    }
-};
+    return sum;
+}
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -100,10 +41,26 @@ int main(int argc, char **argv) {
         std::exit(EXIT_FAILURE);
     }
 
-    Universe universe{argv[1]};
-    universe.printObserved();
-    fmt::print("The sum of all paths is {}\n", universe.findPaths());
-    fmt::print("The x10 sum of all paths is {}\n", universe.findPaths(10));
-    fmt::print("The x100 sum of all paths is {}\n", universe.findPaths(100));
-    fmt::print("The REAL sum of all paths is {}\n", universe.findPaths(1'000'000));
+    std::vector<int64_t> x;
+    std::vector<int64_t> y;
+
+    std::ifstream infile{argv[1]};
+    std::string line;
+    int64_t yPos = 0;
+    while (std::getline(infile, line)) {
+        for (auto xPos = line.find('#', 0); xPos != std::string::npos;
+             xPos = line.find('#', xPos + 1)) {
+            x.push_back(xPos);
+            y.push_back(yPos);
+        }
+        ++yPos;
+    }
+    std::ranges::sort(x);
+    std::ranges::sort(y);
+
+    for (const auto e : {2, 10, 100, 1'000'000}) {
+        const auto xDistSum = distSum(x, e);
+        const auto yDistSum = distSum(y, e);
+        fmt::print("The x{} sum of all paths is {}\n", e, xDistSum + yDistSum);
+    }
 }
