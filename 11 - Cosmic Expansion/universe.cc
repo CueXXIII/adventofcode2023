@@ -17,7 +17,7 @@ struct Universe {
     std::vector<bool> emptyY{};
     std::vector<Vec2l> galaxies{};
 
-    int64_t realX(int64_t x1, int64_t x2) const {
+    int64_t realX(int64_t x1, int64_t x2, const bool old = false) const {
         int64_t add = 0;
         if (x1 > x2) {
             std::swap(x1, x2);
@@ -27,10 +27,10 @@ struct Universe {
                 ++add;
             }
         }
-        return x2 - x1 + add;
+        return x2 - x1 + (old ? add * 999'999 : add);
     }
 
-    int64_t realY(int64_t y1, int64_t y2) const {
+    int64_t realY(int64_t y1, int64_t y2, const bool old = false) const {
         int64_t add = 0;
         if (y1 > y2) {
             std::swap(y1, y2);
@@ -40,7 +40,7 @@ struct Universe {
                 ++add;
             }
         }
-        return y2 - y1 + add;
+        return y2 - y1 + (old ? add * 999'999 : add);
     }
 
     Universe(const char *file) : observed(file) {
@@ -66,6 +66,21 @@ struct Universe {
 
                 const auto lenX = realX(galaxies[from].x, galaxies[to].x);
                 const auto lenY = realY(galaxies[from].y, galaxies[to].y);
+                sum += lenX + lenY;
+                // fmt::print("Between galaxy {} and {}: {}\n", from + 1, to + 1, lenX + lenY);
+            }
+        }
+        return sum;
+    }
+
+    int64_t findOldPaths() const {
+        int64_t sum = 0;
+
+        for (const auto from : iota(0u, galaxies.size())) {
+            for (const auto to : iota(from + 1, galaxies.size())) {
+
+                const auto lenX = realX(galaxies[from].x, galaxies[to].x, true);
+                const auto lenY = realY(galaxies[from].y, galaxies[to].y, true);
                 sum += lenX + lenY;
                 // fmt::print("Between galaxy {} and {}: {}\n", from + 1, to + 1, lenX + lenY);
             }
@@ -103,4 +118,5 @@ int main(int argc, char **argv) {
     Universe universe{argv[1]};
     universe.printObserved();
     fmt::print("The sum of all paths is {}\n", universe.findPaths());
+    fmt::print("The REAL sum of all paths is {}\n", universe.findOldPaths());
 }
