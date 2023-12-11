@@ -21,15 +21,12 @@ int64_t distSum(auto &positions, const int64_t expansion = 2) {
     while (++it != positions.end()) {
         const auto next = *it;
 
-        if (next == current) {
-            sum += openDist;
-            ++count;
-        } else {
+        if (next > current) {
             const auto distToPrev = (next - current - 1) * expansion + 1;
             openDist += count * distToPrev;
-            sum += openDist;
-            ++count;
         }
+        sum += openDist;
+        ++count;
         current = next;
     }
     return sum;
