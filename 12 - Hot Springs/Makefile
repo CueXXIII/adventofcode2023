@@ -1,4 +1,4 @@
-SRC=fsc.cc
+SRC=fsc.cc fsc5.cc fsc6.cc fsc7.cc
 
 CPPFLAGS=-I../common
 CXXFLAGS=-std=c++23 -O3 -march=native -flto=auto -ffat-lto-objects -Wall -Wextra -Wpedantic -Wconversion -Wshadow=local  -g3 -ggdb3
