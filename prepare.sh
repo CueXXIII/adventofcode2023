@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# As per request from https://www.reddit.com/r/adventofcode/wiki/faqs/automation
+# replace RUN_BY with your contact information and recalculate the
+# sha1 hash, or change the check in other ways to ensure it only runs
+# on your system(s).
+RUN_BY=github.com/CueXXIII
+if [ "$(echo "$RUN_BY $(getent passwd $USER)" | sha1sum)" != "df4815d42e2e26c0a42f040272cdf61305c7eea0  -" ]; then
+	echo "Please read the script how to run it."
+	exit 1;
+fi
+
 set -e
 
 read -p "Day to prepare: " day
@@ -29,7 +39,7 @@ git commit -m "day $day skeleton"
 gvim $obj.cc
 
 if [ -f ../cookies.txt ]; then
-    wget --user-agent "github.com/CueXXIII/adventofcode2023/blob/master/prepare.sh" --load-cookies ../cookies.txt -O input.txt https://adventofcode.com/2023/day/$day/input
+    wget --user-agent "github.com/CueXXIII/adventofcode2023/blob/master/prepare.sh by $RUN_BY" --load-cookies ../cookies.txt -O input.txt https://adventofcode.com/2023/day/$day/input
     if [ -f input.txt ]; then
 	# let's look at our input
         cat input.txt
