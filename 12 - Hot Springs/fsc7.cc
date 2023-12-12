@@ -25,8 +25,9 @@ struct SpringRow {
     std::vector<Area> areas{};
     std::vector<int64_t> broken{};
     std::string springs{};
+    int64_t id{};
 
-    SpringRow(SimpleParser &scan) {
+    SpringRow(SimpleParser &scan, const int64_t id) : id(id) {
         springs = scan.getToken();
         springs = springs + '?' + springs + '?' + springs + '?' + springs + '?' + springs;
 
@@ -60,7 +61,7 @@ struct SpringRow {
         broken.insert(broken.end(), bpart.begin(), bpart.end());
     }
 
-    std::string MEMOstr(const auto &layout, const auto bStart, const auto bEnd) const {
+    std::string MEMOcountFits(const auto &layout, const auto bStart, const auto bEnd) const {
         std::string result{layout};
         for (const auto bPos : iota(bStart, bEnd)) {
             result += fmt::format(":{}", broken[bPos]);
@@ -68,8 +69,8 @@ struct SpringRow {
         return result;
     }
 
-    std::string MEMOstr2(const auto &layout, const auto aPos, const auto bPos) const {
-        std::string result{fmt::format("{};{};{}", layout, aPos, bPos)};
+    std::string MEMOarrange(const auto id, const auto aPos, const auto bPos) const {
+        std::string result{fmt::format("{};{};{}", id, aPos, bPos)};
         return result;
     }
 
@@ -88,8 +89,8 @@ struct SpringRow {
     int64_t countFits(const std::string_view layout, const size_t bStart, const size_t bEnd) const {
         // fmt::print("countFits broken[{}, {}) into '{}')...\n", bStart, bEnd, layout);
         int64_t sum = 0;
-        // TODO memo
-        const auto MEMOid = MEMOstr(layout, bStart, bEnd);
+
+        const auto MEMOid = MEMOcountFits(layout, bStart, bEnd);
         if (MEMO.contains(MEMOid)) {
             return MEMO[MEMOid];
         }
@@ -139,36 +140,31 @@ struct SpringRow {
     int64_t arrange(const size_t aPos = 0, const size_t bPos = 0) const {
         // fmt::print("arrange({}, {})\n", aPos, bPos);
 
-        // const auto MEMOid = MEMOstr2(springs, aPos, bPos);
+        const auto MEMOid = MEMOarrange(id, aPos, bPos);
 
-        // if (MEMO.contains(MEMOid)) {
-        //  broken return MEMO[MEMOid];
-        //}
+        if (MEMO.contains(MEMOid)) {
+            return MEMO[MEMOid];
+        }
 
         if (aPos >= areas.size()) {
             if (bPos >= broken.size()) {
-                // MEMO[MEMOid] = 1;
+                MEMO[MEMOid] = 1;
                 return 1;
             } else {
-                // MEMO[MEMOid] = 0;
+                MEMO[MEMOid] = 0;
                 return 0;
             }
         }
 
         int64_t found = 0;
-        size_t brokenSize = 0;
         for (const auto bEnd : iota(bPos, broken.size() + 1)) {
             // fmt::print("arrange ({}, {}) bEnd={}\n", aPos, bPos, bEnd);
             const auto fits = countFits(areas[aPos].layout, bPos, bEnd);
             if (fits > 0) {
                 found += fits * arrange(aPos + 1, bEnd);
             }
-            // brokenSize += (brokenSize == 0 ? 0 : 1) + broken[n];
-            // if (brokenSize > areas[aPos].layout.size()) {
-            //     break;
-            // }
         }
-        // MEMO[MEMOid] = found;
+        MEMO[MEMOid] = found;
         return found;
     }
 };
@@ -180,9 +176,10 @@ int main(int argc, char **argv) {
     }
 
     std::vector<SpringRow> hotTub{};
+    int64_t id{0};
     SimpleParser scan{argv[1]};
     while (!scan.isEof()) {
-        hotTub.emplace_back(scan);
+        hotTub.emplace_back(scan, ++id);
     }
 
     int n = 0;
@@ -193,4 +190,5 @@ int main(int argc, char **argv) {
         fmt::print("{:4}: {} has {} arrangements\n", ++n, row.springs, value);
     }
     fmt::print("The arrangements sum is {}\n", sum);
+    fmt::print("The MEMO cache contains {} entries\n", MEMO.size());
 }

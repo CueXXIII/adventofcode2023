@@ -29,13 +29,13 @@ struct SpringRow {
         }
     }
 
-    void skipSpace(int64_t &x, bool skipUnknown = false) const {
+    void skipSpace(size_t &x, bool skipUnknown = false) const {
         while (x < springs.size() and (springs[x] == '.' or (skipUnknown and springs[x] == '?'))) {
             ++x;
         }
     }
 
-    bool canBeSpring(const int64_t x, const int64_t len) const {
+    bool canBeSpring(const size_t x, const size_t len) const {
         for (const auto pos : iota(x, x + len)) {
             if (pos == springs.size()) {
                 return false;
@@ -62,7 +62,7 @@ struct SpringRow {
     // x: position in springs where to start looking
     // n: position in broken   "
     // arrange() is always called after a spring was complete
-    int64_t arrange(int64_t x = 0, const int64_t n = 0, std::string arrangement = {}) const {
+    int64_t arrange(size_t x = 0, const size_t n = 0, std::string arrangement = {}) const {
         if (arrangement.size() == 0) {
             arrangement = springsStr;
         } else {
