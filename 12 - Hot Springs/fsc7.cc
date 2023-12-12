@@ -13,7 +13,8 @@
 
 using std::views::iota;
 
-std::unordered_map<std::string, int64_t> MEMO{};
+std::unordered_map<std::string, int64_t> MEMO1{};
+std::unordered_map<std::string, int64_t> MEMO2{};
 
 struct Area {
     int64_t len = 0;
@@ -61,76 +62,59 @@ struct SpringRow {
         broken.insert(broken.end(), bpart.begin(), bpart.end());
     }
 
-    std::string MEMOcountFits(const auto &layout, const auto bStart, const auto bEnd) const {
-        std::string result{layout};
-        for (const auto bPos : iota(bStart, bEnd)) {
-            result += fmt::format(":{}", broken[bPos]);
-        }
-        return result;
-    }
-
-    std::string MEMOarrange(const auto id, const auto aPos, const auto bPos) const {
-        std::string result{fmt::format("{};{};{}", id, aPos, bPos)};
-        return result;
-    }
-
     static int64_t canSkip(const std::string_view &layout, const size_t size) {
         const auto result = !layout.substr(0u, size).contains('#');
-        // fmt::print("canSkip('{}', {}) = {}\n", layout, size, result);
         return result;
     }
 
     static int64_t canBeBroken(const std::string_view &layout, const size_t size) {
         const auto result = layout.size() >= size;
-        // fmt::print("canBeBroken('{}', {}) = {}\n", layout, size, result);
         return result;
     }
 
-    int64_t countFits(const std::string_view layout, const size_t bStart, const size_t bEnd) const {
-        // fmt::print("countFits broken[{}, {}) into '{}')...\n", bStart, bEnd, layout);
-        int64_t sum = 0;
-
-        const auto MEMOid = MEMOcountFits(layout, bStart, bEnd);
-        if (MEMO.contains(MEMOid)) {
-            return MEMO[MEMOid];
+    int64_t countFits(const std::string_view &layout, const size_t bStart,
+                      const size_t bEnd) const {
+        std::string MEMOid{layout};
+        for (const auto bPos : iota(bStart, bEnd)) {
+            MEMOid += fmt::format(":{}", broken[bPos]);
         }
 
-        if (bStart >= bEnd) {
+        if (MEMO1.contains(MEMOid)) {
+            return MEMO1[MEMOid];
+        }
+
+        const auto result = countFits_(layout, bStart, bEnd);
+        MEMO1[MEMOid] = result;
+        return result;
+    }
+
+    int64_t countFits_(const std::string_view &layout, const size_t bStart,
+                       const size_t bEnd) const {
+        if (bStart == bEnd) {
             if (canSkip(layout, layout.size())) {
-                sum = 1;
-                goto log;
+                return 1;
             } else {
-                sum = 0;
-                goto log;
+                return 0;
             }
         }
 
+        int64_t sum = 0;
         for (size_t aPos = 0; aPos < layout.size(); ++aPos) {
             if (canSkip(layout, aPos)) {
                 if (canBeBroken(layout.substr(aPos), broken[bStart])) {
-                    const auto layoutBehind = layout.substr(aPos + broken[bStart]);
-                    if (layoutBehind.size() == 0) {
-                        sum += countFits("", bStart + 1, bEnd);
-                    } else if (canSkip(layoutBehind, 1)) {
-                        sum += countFits(layoutBehind.substr(1), bStart + 1, bEnd);
+                    if (layout.size() == aPos + broken[bStart]) {
+                        if (bStart + 1 == bEnd) {
+                            sum += 1;
+                        }
+                    } else {
+                        const auto layoutBehind = layout.substr(aPos + broken[bStart]);
+                        if (canSkip(layoutBehind, 1)) {
+                            sum += countFits(layoutBehind.substr(1), bStart + 1, bEnd);
+                        }
                     }
                 }
             }
         }
-
-        goto log;
-
-        fmt::print("countFits [");
-        if (bStart < bEnd) {
-            fmt::print("{}", broken[bStart]);
-            for (const auto pos : iota(bStart + 1, bEnd)) {
-                fmt::print(", {}", broken[pos]);
-            }
-        }
-        fmt::print("] into '{}') = {}\n", layout, sum);
-
-    log:
-        MEMO[MEMOid] = sum;
         return sum;
     }
 
@@ -138,33 +122,32 @@ struct SpringRow {
     // bPos: position in broken number of springs
     // arrange() is always called after a spring was complete
     int64_t arrange(const size_t aPos = 0, const size_t bPos = 0) const {
-        // fmt::print("arrange({}, {})\n", aPos, bPos);
-
-        const auto MEMOid = MEMOarrange(id, aPos, bPos);
-
-        if (MEMO.contains(MEMOid)) {
-            return MEMO[MEMOid];
+        const std::string MEMOid{fmt::format("{};{};{}", id, aPos, bPos)};
+        if (MEMO2.contains(MEMOid)) {
+            return MEMO2[MEMOid];
         }
 
-        if (aPos >= areas.size()) {
-            if (bPos >= broken.size()) {
-                MEMO[MEMOid] = 1;
+        const auto result = arrange_(aPos, bPos);
+        MEMO2[MEMOid] = result;
+        return result;
+    }
+
+    int64_t arrange_(const size_t aPos = 0, const size_t bPos = 0) const {
+        if (aPos == areas.size()) {
+            if (bPos == broken.size()) {
                 return 1;
             } else {
-                MEMO[MEMOid] = 0;
                 return 0;
             }
         }
 
         int64_t found = 0;
         for (const auto bEnd : iota(bPos, broken.size() + 1)) {
-            // fmt::print("arrange ({}, {}) bEnd={}\n", aPos, bPos, bEnd);
             const auto fits = countFits(areas[aPos].layout, bPos, bEnd);
             if (fits > 0) {
                 found += fits * arrange(aPos + 1, bEnd);
             }
         }
-        MEMO[MEMOid] = found;
         return found;
     }
 };
@@ -188,7 +171,8 @@ int main(int argc, char **argv) {
         const auto value = row.arrange();
         sum += value;
         fmt::print("{:4}: {} has {} arrangements\n", ++n, row.springs, value);
+        MEMO1.clear();
+        MEMO2.clear();
     }
     fmt::print("The arrangements sum is {}\n", sum);
-    fmt::print("The MEMO cache contains {} entries\n", MEMO.size());
 }
