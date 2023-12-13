@@ -1,4 +1,4 @@
-// Forward Spring Correction
+// Forward Spring Correction V7
 #include <algorithm>
 #include <fmt/format.h>
 #include <fstream>
@@ -22,15 +22,19 @@ struct Area {
     bool hasSpring = false;
 };
 
-struct SpringRow {
+template <size_t Dups> struct SpringRow {
     std::vector<Area> areas{};
     std::vector<int64_t> broken{};
     std::string springs{};
     int64_t id{};
 
     SpringRow(SimpleParser &scan, const int64_t id) : id(id) {
-        springs = scan.getToken();
-        springs = springs + '?' + springs + '?' + springs + '?' + springs + '?' + springs;
+        const auto inSprings = scan.getToken();
+        springs = inSprings;
+        for ([[maybe_unused]] const auto _ : iota(1u, Dups)) {
+            springs += '?';
+            springs += inSprings;
+        }
 
         size_t pos = 0;
         while (pos < springs.size()) {
@@ -55,11 +59,9 @@ struct SpringRow {
                 break;
             }
         }
-        broken.insert(broken.end(), bpart.begin(), bpart.end());
-        broken.insert(broken.end(), bpart.begin(), bpart.end());
-        broken.insert(broken.end(), bpart.begin(), bpart.end());
-        broken.insert(broken.end(), bpart.begin(), bpart.end());
-        broken.insert(broken.end(), bpart.begin(), bpart.end());
+        for ([[maybe_unused]] const auto _ : iota(0u, Dups)) {
+            broken.insert(broken.end(), bpart.begin(), bpart.end());
+        }
     }
 
     static int64_t canSkip(const std::string_view &layout, const size_t size) {
@@ -158,21 +160,38 @@ int main(int argc, char **argv) {
         std::exit(EXIT_FAILURE);
     }
 
-    std::vector<SpringRow> hotTub{};
-    int64_t id{0};
-    SimpleParser scan{argv[1]};
-    while (!scan.isEof()) {
-        hotTub.emplace_back(scan, ++id);
+    std::vector<SpringRow<1>> coldTub{};
+    std::vector<SpringRow<5>> hotTub{};
+
+    {
+        int64_t id{0};
+        SimpleParser scan{argv[1]};
+        while (!scan.isEof()) {
+            coldTub.emplace_back(scan, ++id);
+        }
+    }
+    {
+        int64_t id{0};
+        SimpleParser scan{argv[1]};
+        while (!scan.isEof()) {
+            hotTub.emplace_back(scan, ++id);
+        }
     }
 
     int n = 0;
-    int64_t sum = 0;
-    for (auto &row : hotTub) {
-        const auto value = row.arrange();
-        sum += value;
-        fmt::print("{:4}: {} has {} arrangements\n", ++n, row.springs, value);
+    int64_t sumFold = 0;
+    int64_t sumUnfold = 0;
+    for (auto row : iota(0u, hotTub.size())) {
+        const auto valueFold = coldTub[row].arrange();
+        MEMO2.clear();
+        const auto valueUnfold = hotTub[row].arrange();
+        sumFold += valueFold;
+        sumUnfold += valueUnfold;
+        fmt::print("{:4}: {} has {} / {} arrangements\n", ++n, coldTub[row].springs, valueFold,
+                   valueUnfold);
         MEMO1.clear();
         MEMO2.clear();
     }
-    fmt::print("The arrangements sum is {}\n", sum);
+    fmt::print("The arrangements sum is {}\n", sumFold);
+    fmt::print("The unfolded arrangements sum is {}\n", sumUnfold);
 }
