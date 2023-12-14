@@ -65,6 +65,15 @@ template <typename T> struct Grid {
         }
         return data[index(p)];
     }
+
+    void print() const {
+        for (const auto y : std::ranges::views::iota(0, height)) {
+            for (const auto x : std::ranges::views::iota(0, width)) {
+                std::cout << (*this)[x, y];
+            }
+            std::cout << '\n';
+        }
+    }
 };
 
 constexpr std::array<Vec2<int64_t>, 4> neighbours4{{{1, 0}, {0, -1}, {-1, 0}, {0, 1}}};
