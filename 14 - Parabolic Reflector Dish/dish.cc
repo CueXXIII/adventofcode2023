@@ -85,16 +85,6 @@ int64_t getWeight(auto &platform) {
     return sum;
 }
 
-std::string getString(auto &platform) {
-    std::string result{};
-    for (const auto x : iota(0, platform.width)) {
-        for (const auto y : iota(0, platform.height)) {
-            result += platform[x, y];
-        }
-    }
-    return result;
-}
-
 int main(int argc, char **argv) {
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <input.txt>\n";
@@ -103,18 +93,18 @@ int main(int argc, char **argv) {
 
     Grid<char> platform{argv[1]};
 
-    std::unordered_map<std::string, int64_t> cycle{};
+    std::unordered_map<Grid<char>, int64_t> cycle{};
     std::unordered_map<int64_t, int64_t> weights{};
 
     tiltNorth(platform);
-    platform.print();
+    fmt::print("{}", platform);
     fmt::print("The platform needs to support {} metric O\n", getWeight(platform));
 
-    // complete cycle 0
+    // complete cycle 1
     tiltWest(platform);
     tiltSouth(platform);
     tiltEast(platform);
-    cycle[getString(platform)] = 1;
+    cycle[platform] = 1;
     weights[1] = getWeight(platform);
 
     const int64_t cyclesTotal = 1000000000;
@@ -123,18 +113,17 @@ int main(int argc, char **argv) {
         tiltWest(platform);
         tiltSouth(platform);
         tiltEast(platform);
-        const auto platStr = getString(platform);
-        if (cycle.contains(platStr)) {
-            const auto cStart = cycle[platStr];
+        if (cycle.contains(platform)) {
+            const auto cStart = cycle[platform];
             const auto cLen = n - cStart;
             const auto cLeft = (cyclesTotal - cStart) % cLen;
             fmt::print("Detected cycle from {} to {}\n", cStart, n);
-            // platform.print();
+            // fmt::print("{}", platform);
             fmt::print("After {} cycles there are {} metric O\n", cyclesTotal,
                        weights[cStart + cLeft]);
             break;
         } else {
-            cycle[platStr] = n;
+            cycle[platform] = n;
             weights[n] = getWeight(platform);
         }
     }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <concepts>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -66,13 +67,52 @@ template <typename T> struct Grid {
         return data[index(p)];
     }
 
-    void print() const {
-        for (const auto y : std::ranges::views::iota(0, height)) {
-            for (const auto x : std::ranges::views::iota(0, width)) {
-                std::cout << (*this)[x, y];
-            }
-            std::cout << '\n';
+    bool operator==(const Grid &other) const {
+        if (width != other.width or height != other.height or empty != other.empty) {
+            return false;
         }
+        return data == other.data;
+    }
+};
+
+// https://stackoverflow.com/questions/20511347/a-good-hash-function-for-a-vector/72073933#72073933
+template <typename T>
+concept GridDataCastable32 = requires(T x) { static_cast<uint32_t>(x); };
+
+template <GridDataCastable32 T> struct std::hash<Grid<T>> {
+    constexpr std::size_t operator()(const Grid<T> &g) const noexcept {
+        std::size_t seed = g.data.size();
+        for (const auto xval : g.data) {
+            auto x = static_cast<uint32_t>(xval);
+            x = ((x >> 16) ^ x) * 0x45d9f3b;
+            x = ((x >> 16) ^ x) * 0x45d9f3b;
+            x = (x >> 16) ^ x;
+            seed ^= x + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        }
+        return seed;
+    }
+};
+
+// from https://fmt.dev/latest/api.html#format-api
+template <typename T> struct fmt::formatter<Grid<T>> {
+    // parse format specifier "...{:3.14f}..." is passed as "3.14f}..."
+    // and it must advance to the }
+    // TODO: save custom format and use them for all values
+    constexpr auto parse(format_parse_context &ctx) -> decltype(ctx.begin()) {
+        auto it = ctx.begin(), end = ctx.end();
+        if (it != end && *it != '}')
+            throw format_error("invalid format");
+        return it;
+    }
+    template <typename FormatContext>
+    constexpr auto format(const Grid<T> &grid, FormatContext &ctx) const -> decltype(ctx.out()) {
+        for (const auto y : std::ranges::views::iota(0, grid.height)) {
+            for (const auto x : std::ranges::views::iota(0, grid.width)) {
+                fmt::format_to(ctx.out(), "{}", grid[x, y]);
+            }
+            fmt::format_to(ctx.out(), "\n");
+        }
+        return fmt::format_to(ctx.out(), "");
     }
 };
 
