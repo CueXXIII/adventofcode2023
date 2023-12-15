@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cassert>
 #include <fmt/format.h>
 #include <fstream>
 #include <iostream>
@@ -11,12 +12,13 @@
 
 using std::views::iota;
 
-int64_t hash(const std::string msg) {
-    int64_t current = 0;
+uint8_t HASH(const std::string msg) {
+    uint8_t state = 0;
     for (const auto c : msg) {
-        current = ((current + c) * 17) % 256;
+        state += static_cast<uint8_t>(c);
+        state *= 17;
     }
-    return current;
+    return state;
 }
 
 void part1(const char *file, const bool debug = false) {
@@ -25,7 +27,7 @@ void part1(const char *file, const bool debug = false) {
     while (!scan.isEof()) {
         const std::string step = scan.getToken(',');
         scan.skipChar(',');
-        const auto result = hash(step);
+        const auto result = HASH(step);
         if (debug)
             fmt::print("'{}' = {}\n", step, result);
         sum += result;
@@ -75,7 +77,7 @@ struct HASHMAP {
     }
 
     void remove(const std::string &label) {
-        auto &box = boxes[hash(label)];
+        auto &box = boxes[HASH(label)];
         const auto where = findLabel(label, box);
         if (where != box.end()) {
             box.erase(where);
@@ -83,7 +85,7 @@ struct HASHMAP {
     }
 
     void insert(const std::string &label, int64_t focal) {
-        auto &box = boxes[hash(label)];
+        auto &box = boxes[HASH(label)];
         const auto where = findLabel(label, box);
         if (where != box.end()) {
             where->focal = focal;
@@ -133,6 +135,10 @@ int main(int argc, char **argv) {
         std::cerr << "Usage: " << argv[0] << " <input.txt>\n";
         std::exit(EXIT_FAILURE);
     }
+
+    // selftest
+    assert(HASH("HASH") == 52);
+    fmt::print("HASH self verification passed\n");
 
     part1(argv[1]);
     part2(argv[1]);
