@@ -10,6 +10,9 @@ if [ "$(echo "$RUN_BY $(getent passwd $USER)" | sha1sum)" != "df4815d42e2e26c0a4
 	exit 1;
 fi
 
+# unset gtk3-nocsd for asan
+unset LD_PRELOAD
+
 set -e
 
 read -p "Day to prepare: " day
