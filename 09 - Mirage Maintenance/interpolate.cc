@@ -28,8 +28,8 @@ void print(const Seq &data) {
         return;
     }
     fmt::print("[{}", data[0]);
-    for (const auto &v : data | std::ranges::views::drop(1)) {
-        fmt::print(", {}", v);
+    for (const auto &value : data | std::views::drop(1)) {
+        fmt::print(", {}", value);
     }
     fmt::print("]\n");
 }
@@ -37,8 +37,8 @@ void print(const Seq &data) {
 int64_t nextValue(const Seq &data) {
     Seq delta{};
     bool allZero = true;
-    for (const auto i : iota(1u, data.size())) {
-        const auto value = data[i] - data[i - 1];
+    for (const auto &value : data | std::views::adjacent_transform<2>(
+                                        [](const auto n0, const auto n1) { return n1 - n0; })) {
         if (value != 0) {
             allZero = false;
         }
