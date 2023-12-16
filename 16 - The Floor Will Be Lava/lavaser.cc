@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <ranges>
+#include <stack>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -83,47 +84,53 @@ struct VulcanRoom {
             return energizedTiles();
         }
 
-        void follow(Photon beam) {
-            beam.position += beam.direction;
-            // fmt::print("follow(({}, {}))\n", beam.position, beam.direction);
-            if (beam.position.x < 0 or beam.position.x >= v.width or beam.position.y < 0 or
-                beam.position.y >= v.height) {
-                // fmt::print("left the floor\n");
-                return;
+        void follow(const Photon &firstBeam) {
+            std::stack<Photon> beamStack{};
+            beamStack.push(firstBeam);
+            while (!beamStack.empty()) {
+                followTopBeam(beamStack);
             }
-            if (photons.contains(beam)) {
-                // fmt::print("looping beam\n");
-                return;
-            }
-            photons.insert(beam);
-            floor[beam.position] = 1;
+        }
 
-            switch (v.mirrors[beam.position]) {
-            case '.':
-                follow(beam);
-                break;
-            case '/':
-                follow({beam.position, {-beam.direction.y, -beam.direction.x}});
-                break;
-            case '\\':
-                follow({beam.position, {+beam.direction.y, +beam.direction.x}});
-                break;
-            case '|':
-                if (beam.direction.x == 0) {
-                    follow(beam);
-                } else {
-                    follow({beam.position, {0, -1}});
-                    follow({beam.position, {0, +1}});
+        void followTopBeam(auto &beamStack) {
+            auto beam = beamStack.top();
+            beamStack.pop();
+
+            for (;;) {
+                beam.position += beam.direction;
+                // fmt::print("followTopBeam()::beam = ({}, {})\n", beam.position, beam.direction);
+                if (beam.position.x < 0 or beam.position.x >= v.width or beam.position.y < 0 or
+                    beam.position.y >= v.height) {
+                    // fmt::print("left the floor\n");
+                    return;
                 }
-                break;
-            case '-':
-                if (beam.direction.y == 0) {
-                    follow(beam);
-                } else {
-                    follow({beam.position, {-1, 0}});
-                    follow({beam.position, {+1, 0}});
+                if (photons.contains(beam)) {
+                    // fmt::print("looping beam\n");
+                    return;
                 }
-                break;
+                photons.insert(beam);
+                floor[beam.position] = 1;
+
+                switch (v.mirrors[beam.position]) {
+                case '/':
+                    beam.direction = {-beam.direction.y, -beam.direction.x};
+                    break;
+                case '\\':
+                    beam.direction = {+beam.direction.y, +beam.direction.x};
+                    break;
+                case '|':
+                    if (beam.direction.x != 0) {
+                        beam.direction = {0, -1};
+                        beamStack.emplace(beam.position, Vec2l{0, +1});
+                    }
+                    break;
+                case '-':
+                    if (beam.direction.y != 0) {
+                        beam.direction = {-1, 0};
+                        beamStack.emplace(beam.position, Vec2l{+1, 0});
+                    }
+                    break;
+                }
             }
         }
     };
