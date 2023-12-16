@@ -33,6 +33,10 @@ template <typename num> struct Vec2 {
     constexpr Vec2 operator-(const Vec2 &other) const { return Vec2{*this} -= other; }
     constexpr Vec2 operator*(const num factor) const { return Vec2{*this} *= factor; }
 
+    constexpr auto operator<=>(const Vec2 &other) const {
+        return std::pair(x, y) <=> std::pair(other.x, other.y);
+    }
+
     friend constexpr std::ostream &operator<<(std::ostream &out, const Vec2 &vec) {
         return out << "(" << vec.x << ", " << vec.y << ")";
     }
