@@ -33,9 +33,14 @@ struct VulcanRoom {
     VulcanRoom(const char *file)
         : mirrors(file), width(mirrors.width), height(mirrors.height), floor(width, height, 0){};
 
-    int64_t energize1() {
-        energize(Photon{{-1, 0}, {1, 0}});
-        // return number of energized tiles
+    void clearFloor() {
+        for (auto &tile : floor.data) {
+            tile = 0;
+        }
+        photons.clear();
+    }
+
+    int64_t energizedTiles() const {
         int64_t count = 0;
         for (const auto &tile : floor.data) {
             if (tile != 0) {
@@ -45,17 +50,47 @@ struct VulcanRoom {
         return count;
     }
 
+    int64_t energize1() {
+        energize(Photon{{-1, 0}, {1, 0}});
+        // return number of energized tiles
+        return energizedTiles();
+    }
+
+    // all
+    int64_t energize2() {
+        int64_t maxPower = 0;
+        for (const auto x : iota(0, width)) {
+            clearFloor();
+            energize({{x, -1}, {0, 1}});
+            maxPower = std::max(maxPower, energizedTiles());
+
+            clearFloor();
+            energize({{x, height}, {0, -1}});
+            maxPower = std::max(maxPower, energizedTiles());
+        }
+
+        for (const auto y : iota(0, height)) {
+            clearFloor();
+            energize({{-1, y}, {1, 0}});
+            maxPower = std::max(maxPower, energizedTiles());
+
+            clearFloor();
+            energize({{width, y}, {-1, 0}});
+            maxPower = std::max(maxPower, energizedTiles());
+        }
+        return maxPower;
+    }
+
     void energize(Photon beam) {
         beam.position += beam.direction;
-        fmt::print("energize(({}, {}))\n", beam.position, beam.direction);
+        // fmt::print("energize(({}, {}))\n", beam.position, beam.direction);
         if (beam.position.x < 0 or beam.position.x >= width or beam.position.y < 0 or
             beam.position.y >= height) {
-            fmt::print("left the floor\n");
+            // fmt::print("left the floor\n");
             return;
         }
-        // part 2?
         if (photons.contains(beam)) {
-            fmt::print("looping beam\n");
+            // fmt::print("looping beam\n");
             return;
         }
         photons.insert(beam);
@@ -99,4 +134,5 @@ int main(int argc, char **argv) {
 
     VulcanRoom room{argv[1]};
     fmt::print("The beam heats {} tiles\n", room.energize1());
+    fmt::print("After adjusting the beam you heat {} tiles\n", room.energize2());
 }
