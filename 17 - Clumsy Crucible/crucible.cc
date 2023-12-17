@@ -14,19 +14,15 @@
 
 using std::views::iota;
 
-// constexpr std::array<Vec2<int64_t>, 4> neighbours4{{{1, 0}, {0, -1}, {-1, 0}, {0, 1}}};
-
-enum Direction { right = 0, up = 1, left = 2, down = 3 };
-constexpr std::array<std::string, 4> DirectionStr{"right", "up", "left", "down"};
+enum Direction : uint8_t { right = 0, up = 1, left = 2, down = 3, none = 7 };
 
 enum Bool : int8_t { no = 0, yes = 1 };
 
-constexpr auto moveTo(const Direction dir) { return neighbours4[dir]; }
-
 struct Crucible {
-    Vec2l pos{};
-    int64_t loss{};
-    std::array<Direction, 3> hist{up, up, up};
+    Vec2l pos{0, 0};
+    int64_t loss{0};
+    Direction movingDirection{none};
+    uint8_t movingDist{0};
     bool hasMoved{false};
     // std::vector<Direction> path{};
 
@@ -34,27 +30,39 @@ struct Crucible {
         if (!hasMoved) {
             return true;
         }
-        // can't turn back
-        if (dir == (hist[2] + 2) % 4) {
+        if (dir == ((movingDirection + 2) & 3)) {
+            // can't turn back
             return false;
         }
-        return hist[0] != dir or hist[1] != dir or hist[2] != dir;
+        if (dir != movingDirection) {
+            // turn always
+            return true;
+        } else {
+            // must turn after 3 moves
+            return movingDist < 3;
+        }
     }
 
     constexpr bool canStop() const { return true; }
 
     void move(const Direction dir) {
         pos += neighbours4[dir];
-        hist[0] = hist[1];
-        hist[1] = hist[2];
-        hist[2] = dir;
+        if (movingDirection != dir) {
+            movingDirection = dir;
+            movingDist = 1;
+        } else {
+            ++movingDist;
+        }
         hasMoved = true;
         // path.push_back(dir);
     }
 
     operator Vec2l() const { return pos; }
 
-    operator Vec3l() const { return {pos.x, pos.y, hist[0] + hist[1] * 4 + hist[2] * 16}; }
+    operator Vec3l() const {
+        const int64_t z = movingDist + movingDirection * 256;
+        return {pos.x, pos.y, z};
+    }
 
     // quasi sort for pri queue
     auto operator<=>(const Crucible &other) const {
@@ -63,9 +71,10 @@ struct Crucible {
 };
 
 struct UltraCrucible {
-    Vec2l pos{};
-    int64_t loss{};
-    std::array<Direction, 10> hist{up, up, up, up, up, up, up, up, up, up};
+    Vec2l pos{0, 0};
+    int64_t loss{0};
+    Direction movingDirection{none};
+    uint8_t movingDist{0};
     bool hasMoved{false};
     // std::vector<Direction> path{};
 
@@ -73,44 +82,32 @@ struct UltraCrucible {
         if (!hasMoved) {
             return true;
         }
-        if (dir == (hist[9] + 2) % 4) {
+        if (dir == ((movingDirection + 2) & 3)) {
             // can't turn back
             return false;
         }
-        if (dir != hist[9]) {
+        if (dir != movingDirection) {
             // turn only after 4 moves
-            for (const auto i : iota(6, 9)) {
-                if (hist[i] != hist[9]) {
-                    return false;
-                }
-            }
-            return true;
+            return movingDist >= 4;
         } else {
             // must turn after 10 moves
-            for (const auto i : iota(0, 9)) {
-                if (hist[i] != hist[9]) {
-                    return true;
-                }
-            }
-            return false;
+            return movingDist < 10;
         }
     }
 
     bool canStop() const {
-        for (const auto i : iota(6, 9)) {
-            if (hist[i] != hist[9]) {
-                return false;
-            }
-        }
-        return true;
+        // stop only after 4 moves
+        return movingDist >= 4;
     }
 
     void move(const Direction dir) {
         pos += neighbours4[dir];
-        for (const auto i : iota(0, 9)) {
-            hist[i] = hist[i + 1];
+        if (movingDirection != dir) {
+            movingDirection = dir;
+            movingDist = 1;
+        } else {
+            ++movingDist;
         }
-        hist[9] = dir;
         hasMoved = true;
         // path.push_back(dir);
     }
@@ -118,10 +115,7 @@ struct UltraCrucible {
     operator Vec2l() const { return pos; }
 
     operator Vec3l() const {
-        int64_t z = 0;
-        for (const auto h : hist) {
-            z = z * 4 + h;
-        }
+        const int64_t z = movingDist + movingDirection * 256;
         return {pos.x, pos.y, z};
     }
 
@@ -175,9 +169,9 @@ int main(int argc, char **argv) {
     // encode last 3 movements as position
     Grid<int8_t> floor(argv[1], -1);
 
-    const auto loss = findPath(floor, Crucible{{0, 0}, 0});
+    const auto loss = findPath(floor, Crucible{});
     fmt::print("You lose {} heat\n", loss);
 
-    const auto ultraloss = findPath(floor, UltraCrucible{{0, 0}, 0});
+    const auto ultraloss = findPath(floor, UltraCrucible{});
     fmt::print("You ultra lose {} heat\n", ultraloss);
 }
