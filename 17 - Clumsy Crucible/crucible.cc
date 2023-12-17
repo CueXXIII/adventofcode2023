@@ -21,11 +21,10 @@ template <int minMove, int maxMove> struct Crucible {
     int64_t loss{0};
     Direction movingDirection{none};
     uint8_t movingDist{0};
-    bool hasMoved{false};
     // std::vector<Direction> path{};
 
     constexpr bool canMove(const Direction dir) const {
-        if (!hasMoved) {
+        if (movingDirection == none) {
             return true;
         }
         if (dir == ((movingDirection + 2) & 3)) {
@@ -62,7 +61,6 @@ template <int minMove, int maxMove> struct Crucible {
         } else {
             ++movingDist;
         }
-        hasMoved = true;
         // path.push_back(dir);
     }
 
@@ -75,7 +73,8 @@ template <int minMove, int maxMove> struct Crucible {
 
     // quasi sort for pri queue
     constexpr auto operator<=>(const Crucible &other) const {
-        return std::pair(-loss, pos) <=> std::pair(-other.loss, other.pos);
+        // minimize loss, maximize position (= min manhatten dist from goal)
+        return (-loss + pos.x + pos.y) <=> (-other.loss + other.pos.x + other.pos.y);
     }
 };
 
