@@ -16,7 +16,7 @@ using std::views::iota;
 
 enum Direction : uint8_t { right = 0, up = 1, left = 2, down = 3, none = 7 };
 
-template <uint8_t minMove, uint8_t maxMove> struct Crucible {
+template <int minMove, int maxMove> struct Crucible {
     Vec2l pos{0, 0};
     int64_t loss{0};
     Direction movingDirection{none};
@@ -93,7 +93,6 @@ template <typename Cart> constexpr int64_t findPath(const Grid<char> &floor, con
         frontier.pop();
 
         // fmt::print("checking {}\n", position.pos);
-        visited.insert(position);
         if (position == destination and position.canStop()) {
             // fmt::print("Path =");
             // for (const auto dir : position.path) {
@@ -123,7 +122,6 @@ int main(int argc, char **argv) {
         std::exit(EXIT_FAILURE);
     }
 
-    // encode last 3 movements as position
     Grid<char> floor(argv[1], -1);
 
     const auto loss = findPath(floor, TopHeavyCrucible{});
