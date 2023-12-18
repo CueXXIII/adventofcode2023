@@ -13,7 +13,6 @@
 #include "vec2.hpp"
 
 using std::views::iota;
-using std::views::reverse; // for iota(0,10) | reverse
 
 struct Instruction {
     int64_t len{};
@@ -21,7 +20,9 @@ struct Instruction {
     char dir{};
     char dir2{};
 
+    // for neighbours4[]
     constexpr static const std::string DirName = "RULD";
+    // ordered as encoded in the input
     constexpr static const std::string Dir2Name = "RDLU";
 
     Instruction(SimpleParser &scan) {
@@ -33,7 +34,6 @@ struct Instruction {
         scan.skipChar(')');
         len2 = std::stoll(color, nullptr, 16) >> 4;
         dir2 = Dir2Name[color[color.size() - 1] - '0'];
-        fmt::print("#{} = {} {}\n", color, dir2, len2);
     }
 
     const auto &getDir() const { return neighbours4.at(DirName.find(dir)); }
@@ -65,8 +65,6 @@ struct Ground {
             max2 = {std::max(max2.x, pos2.x), std::max(max2.y, pos2.y)};
         }
         offset = min * -1;
-        fmt::print("ground [{}, {}]\n", min, max);
-        fmt::print("ground2 [{}, {}]\n", min2, max2);
     }
 
     void dig() {
@@ -174,7 +172,6 @@ struct Ground {
             for (const auto &digLine : poly) {
                 if (digLine.first.y == scanline and digLine.second.y == scanline) {
                     thisDigLines.push_back(digLine);
-                    fmt::print("Found horizontal dig [{}, {}]\n", digLine.first, digLine.second);
                 }
             }
 
@@ -248,11 +245,6 @@ struct Ground {
                     inside = !inside;
                 }
             }
-            fmt::print("new border = [");
-            for (const auto &stroke : newBorder) {
-                fmt::print(" {}/{}", stroke.x, stroke.toInside);
-            }
-            fmt::print(" ]\n");
             digBorder = std::move(newBorder);
             if (inside) {
                 fmt::print("Still inside on y={}?\n", scanline);
@@ -280,7 +272,6 @@ struct Ground {
             }
 
             scanline = nextScanline;
-            fmt::print("Next scan on {}\n", scanline);
         }
         return filled;
     }
