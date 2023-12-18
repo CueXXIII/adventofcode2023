@@ -55,6 +55,7 @@ class SimpleParser {
     std::string getAlNum();
     std::string getLine();
 
+    char getChar();
     char peekChar();
 
     void skipWhitespace();
@@ -123,6 +124,16 @@ std::string SimpleParser::getLine() {
 bool SimpleParser::isEof() const { return eof; }
 
 bool SimpleParser::isEol() const { return eol; }
+
+char SimpleParser::getChar() {
+    skipWhitespace();
+    if (!eof) {
+        const auto c = buffer[pos];
+        bufferNextChar();
+        return c;
+    }
+    return -1;
+}
 
 char SimpleParser::peekChar() {
     skipWhitespace();

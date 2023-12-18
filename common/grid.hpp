@@ -3,6 +3,8 @@
 #include <array>
 #include <concepts>
 #include <fstream>
+#include <iostream>
+#include <ranges>
 #include <string>
 #include <vector>
 
@@ -72,6 +74,15 @@ template <typename T> struct Grid {
             return false;
         }
         return data == other.data;
+    }
+
+    void print() const {
+        for (const auto y : std::views::iota(0, height)) {
+            for (const auto x : std::views::iota(0, width)) {
+                std::cout << (*this)[x, y];
+            }
+            std::cout << '\n';
+        }
     }
 };
 
