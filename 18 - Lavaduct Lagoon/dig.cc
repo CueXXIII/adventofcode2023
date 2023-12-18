@@ -42,7 +42,8 @@ struct Instruction {
 
 struct Ground {
     std::vector<Instruction> plan{};
-    Vec2l offset{};
+    Vec2l min{0, 0};
+    Vec2l max{0, 0};
     Vec2l min2{0, 0};
     Vec2l max2{0, 0};
     Grid<char> ground{380, 187 + 233, '.'};
@@ -50,9 +51,6 @@ struct Ground {
 
     Ground(SimpleParser &scan) {
         Vec2l pos{0, 0};
-        Vec2l min{0, 0};
-        Vec2l max{0, 0};
-
         Vec2l pos2{0, 0};
         while (!scan.isEof()) {
             plan.emplace_back(scan);
@@ -64,63 +62,23 @@ struct Ground {
             min2 = {std::min(min2.x, pos2.x), std::min(min2.y, pos2.y)};
             max2 = {std::max(max2.x, pos2.x), std::max(max2.y, pos2.y)};
         }
-        offset = min * -1;
     }
 
-    void dig() {
-        Vec2l position = offset;
-        ground[position] = '#';
-        for (const auto &inst : plan) {
-            const auto direction = inst.getDir();
-            for ([[maybe_unused]] const auto n : iota(0, inst.len)) {
-                position += direction;
-                ground[position] = '#';
-                ++filled;
-            }
-        }
-    }
-
-    void fill() {
-        const Vec2l start = offset + Vec2l{1, 1};
-        if (ground[start] != '.') {
-            fmt::print("no place to start flood fill!\n");
-            throw;
-        }
-
-        std::stack<Vec2l> frontier{};
-        ground[start] = '#';
-        ++filled;
-        frontier.push(start);
-        while (!frontier.empty()) {
-            const auto pos = frontier.top();
-            frontier.pop();
-            for (const auto dir : neighbours4) {
-                const auto next = pos + dir;
-                if (ground[next] == '.') {
-                    ground[next] = '#';
-                    ++filled;
-                    frontier.push(next);
-                }
-            }
-        }
-    }
-
-    // --- part 2 ---
     // every corner is 90° (checked manually)
-    struct DigBorder {
+    struct VertStroke {
         int64_t x;
-        bool toInside;
     };
 
-    std::vector<DigBorder> digBorder{};
+    std::vector<VertStroke> digBorder{};
 
     std::vector<std::pair<Vec2l, Vec2l>> poly{};
 
     // init polygon
-    void getPoly() {
+    void getPoly(const bool part2 = true) {
         Vec2l position{0, 0};
         for (const auto &inst : plan) {
-            const auto next = position + inst.getDir2() * inst.len2;
+            const auto next =
+                position + (part2 ? inst.getDir2() * inst.len2 : inst.getDir() * inst.len);
             if (position.x <= next.x and position.y <= next.y) {
                 poly.emplace_back(position, next);
             } else {
@@ -159,15 +117,17 @@ struct Ground {
     // count tiles in inclusive interval
     static inline int64_t interval(const int64_t from, const int64_t to) { return to - from + 1; }
 
-    int64_t fill2() {
+    int64_t fill2(const bool part2 = true) {
         int64_t filled = 0;
+        poly.clear();
+        digBorder.clear();
 
-        getPoly();
+        getPoly(part2);
 
         // scan y lines
-        int64_t scanline = min2.y;
+        int64_t scanline = part2 ? min2.y : min.y;
 
-        while (scanline <= max2.y) {
+        while (scanline < std::numeric_limits<int64_t>::max()) {
             std::vector<std::pair<Vec2l, Vec2l>> thisDigLines{};
             for (const auto &digLine : poly) {
                 if (digLine.first.y == scanline and digLine.second.y == scanline) {
@@ -177,8 +137,8 @@ struct Ground {
 
             // fill on horizontal digs
             bool inside = false;
-            int64_t xPos = min2.x; // filled up to this pos
-            std::vector<DigBorder> newBorder{};
+            int64_t xPos = part2 ? min2.x : min.x; // filled up to this pos
+            std::vector<VertStroke> newBorder{};
             auto horIt = thisDigLines.begin();
             auto verIt = digBorder.begin();
             while (horIt != thisDigLines.end() or verIt != digBorder.end()) {
@@ -207,7 +167,7 @@ struct Ground {
                     // connect begin
                     if (!verPos or verPos->x != horPos->x) {
                         inside = !inside;
-                        newBorder.emplace_back(horPos->x, inside);
+                        newBorder.emplace_back(horPos->x);
                     }
                     if (verPos and verPos->x == horPos->x) {
                         ++verIt;
@@ -221,7 +181,7 @@ struct Ground {
                     // connect end
                     if (!verPos or verPos->x != horEnd->x) {
                         inside = !inside;
-                        newBorder.emplace_back(horEnd->x, inside);
+                        newBorder.emplace_back(horEnd->x);
                     }
                     if (verPos and verPos->x == horEnd->x) {
                         ++verIt;
@@ -258,7 +218,7 @@ struct Ground {
                 const int64_t height = nextScanline - scanline - 1;
                 int64_t fillTiles = 0;
                 inside = false;
-                xPos = min2.x;
+                xPos = part2 ? min2.x : min.x;
                 for (const auto &stroke : digBorder) {
                     if (!inside) {
                         ++fillTiles;
@@ -287,9 +247,8 @@ int main(int argc, char **argv) {
 
     SimpleParser scan{argv[1]};
     Ground ground{scan};
-    ground.dig();
-    ground.fill();
-    fmt::print("There are {} filled tiles\n", ground.filled);
-    const auto tiles2 = ground.fill2();
+    const auto tiles1 = ground.fill2(false);
+    fmt::print("There are {} filles tiles\n", tiles1);
+    const auto tiles2 = ground.fill2(true);
     fmt::print("There are {} painted tiles\n", tiles2);
 }
