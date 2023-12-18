@@ -1,10 +1,7 @@
 #include <algorithm>
 #include <fmt/format.h>
-#include <fstream>
 #include <iostream>
-#include <optional>
 #include <ranges>
-#include <stack>
 #include <string>
 #include <vector>
 
@@ -23,7 +20,7 @@ struct Instruction {
     // for neighbours4[]
     constexpr static const std::string DirName = "RULD";
     // ordered as encoded in the input
-    constexpr static const std::string Dir2Name = "RDLU";
+    constexpr static const std::string ElfDir = "RDLU";
 
     Instruction(SimpleParser &scan) {
         dir = scan.getChar();
@@ -31,195 +28,143 @@ struct Instruction {
         scan.skipChar('(');
         scan.skipChar('#');
         const auto color = scan.getAlNum();
-        scan.skipChar(')');
         len2 = std::stoll(color, nullptr, 16) >> 4;
-        dir2 = Dir2Name[color[color.size() - 1] - '0'];
+        dir2 = ElfDir[color[color.size() - 1] - '0'];
+        scan.skipChar(')');
     }
 
     const auto &getDir() const { return neighbours4.at(DirName.find(dir)); }
     const auto &getDir2() const { return neighbours4.at(DirName.find(dir2)); }
 };
 
-struct Ground {
-    std::vector<Instruction> plan{};
-    Vec2l min{0, 0};
-    Vec2l max{0, 0};
-    Vec2l min2{0, 0};
-    Vec2l max2{0, 0};
-    Grid<char> ground{380, 187 + 233, '.'};
-    int64_t filled = 0;
-
-    Ground(SimpleParser &scan) {
-        Vec2l pos{0, 0};
-        Vec2l pos2{0, 0};
-        while (!scan.isEof()) {
-            plan.emplace_back(scan);
-            const auto &dir = plan.back();
-            pos += dir.getDir() * dir.len;
-            pos2 += dir.getDir2() * dir.len2;
-            min = {std::min(min.x, pos.x), std::min(min.y, pos.y)};
-            max = {std::max(max.x, pos.x), std::max(max.y, pos.y)};
-            min2 = {std::min(min2.x, pos2.x), std::min(min2.y, pos2.y)};
-            max2 = {std::max(max2.x, pos2.x), std::max(max2.y, pos2.y)};
-        }
-    }
-
-    // every corner is 90° (checked manually)
-    struct VertStroke {
-        int64_t x;
-    };
-
-    std::vector<VertStroke> digBorder{};
-
-    std::vector<std::pair<Vec2l, Vec2l>> poly{};
-
-    // init polygon
-    void getPoly(const bool part2 = true) {
+struct Poly {
+    std::vector<std::pair<Vec2l, Vec2l>> edges{};
+    int64_t minY = 0;
+    Poly() = default;
+    Poly(const auto &plan, bool decode = false) {
         Vec2l position{0, 0};
         for (const auto &inst : plan) {
             const auto next =
-                position + (part2 ? inst.getDir2() * inst.len2 : inst.getDir() * inst.len);
+                position + (decode ? inst.getDir2() * inst.len2 : inst.getDir() * inst.len);
             if (position.x <= next.x and position.y <= next.y) {
-                poly.emplace_back(position, next);
+                edges.emplace_back(position, next);
             } else {
-                poly.emplace_back(next, position);
+                edges.emplace_back(next, position);
             }
+            minY = std::min(minY, position.y);
             position = next;
         }
-        std::ranges::sort(poly);
-    }
-
-    // get vertical adjacent poly
-    const auto &getAdj(const auto &pos) {
-        for (const auto &stroke : poly) {
-            if (stroke.first == pos or stroke.second == pos) {
-                if (stroke.first.y == stroke.second.y) {
-                    return stroke;
-                }
-            }
-        }
-        throw "Missing segment";
+        std::ranges::sort(edges);
     }
 
     int64_t findNextScanline(const int64_t scanline) {
         int64_t next = std::numeric_limits<int64_t>::max();
-        for (const auto &stroke : poly) {
-            if (stroke.first.y > scanline) {
-                next = std::min(next, stroke.first.y);
+        for (const auto &edge : edges) {
+            if (edge.first.y > scanline) {
+                next = std::min(next, edge.first.y);
             }
-            if (stroke.second.y > scanline) {
-                next = std::min(next, stroke.second.y);
+            if (edge.second.y > scanline) {
+                next = std::min(next, edge.second.y);
             }
         }
         return next;
     }
+};
+
+struct Ground {
+    std::vector<Instruction> plan{};
+    Poly poly1;
+    Poly poly2;
+
+    Ground(SimpleParser &scan) {
+        while (!scan.isEof()) {
+            plan.emplace_back(scan);
+        }
+        poly1 = std::move(Poly{plan, false});
+        poly2 = std::move(Poly{plan, true});
+    }
+
+    // every corner is 90° (checked manually)
+    struct VertEdge {
+        int64_t x;
+    };
 
     // count tiles in inclusive interval
     static inline int64_t interval(const int64_t from, const int64_t to) { return to - from + 1; }
 
     int64_t fill2(const bool part2 = true) {
         int64_t filled = 0;
-        poly.clear();
-        digBorder.clear();
+        std::vector<VertEdge> vertEdges{};
 
-        getPoly(part2);
+        auto &poly = part2 ? poly2 : poly1;
 
         // scan y lines
-        int64_t scanline = part2 ? min2.y : min.y;
+        int64_t scanline = poly.minY;
 
         while (scanline < std::numeric_limits<int64_t>::max()) {
-            std::vector<std::pair<Vec2l, Vec2l>> thisDigLines{};
-            for (const auto &digLine : poly) {
-                if (digLine.first.y == scanline and digLine.second.y == scanline) {
-                    thisDigLines.push_back(digLine);
+            std::vector<std::pair<Vec2l, Vec2l>> horizEdges{};
+            for (const auto &edge : poly.edges) {
+                if (edge.first.y == scanline and edge.second.y == scanline) {
+                    horizEdges.push_back(edge);
                 }
             }
 
             // fill on horizontal digs
             bool inside = false;
-            int64_t xPos = part2 ? min2.x : min.x; // filled up to this pos
-            std::vector<VertStroke> newBorder{};
-            auto horIt = thisDigLines.begin();
-            auto verIt = digBorder.begin();
-            while (horIt != thisDigLines.end() or verIt != digBorder.end()) {
-                std::optional<Vec2l> horPos{};
-                std::optional<Vec2l> horEnd{};
-                std::optional<Vec2l> verPos{};
-                if (horIt != thisDigLines.end()) {
-                    horPos = horIt->first;
-                    horEnd = horIt->second;
-                }
-                if (verIt != digBorder.end()) {
-                    verPos = Vec2l{verIt->x, scanline};
-                }
-                if (!horPos and !verPos) {
-                    throw("we have nothing?!");
-                }
-                // assume at least 1 horPos in the input
-                if (horPos and (!verPos or verPos->x >= horPos->x)) {
-                    // fmt::print("inside {}\n", *horPos);
+            int64_t xPos{}; // filled up to this pos
+            std::vector<VertEdge> newVertEdges{};
+            auto horizEdge = horizEdges.begin();
+            auto vertEdge = vertEdges.begin();
+            while (horizEdge != horizEdges.end() or vertEdge != vertEdges.end()) {
+                // horizontal edge is first
+                if (horizEdge != horizEdges.end() and
+                    (vertEdge == vertEdges.end() or vertEdge->x >= horizEdge->first.x)) {
                     if (inside) {
-                        filled += interval(xPos + 1, horPos->x - 1);
+                        filled += interval(xPos + 1, horizEdge->first.x - 1);
                     }
-                    filled += interval(horPos->x, horEnd->x);
-                    xPos = horEnd->x;
+                    filled += interval(horizEdge->first.x, horizEdge->second.x);
+                    xPos = horizEdge->second.x;
 
                     // connect begin
-                    if (!verPos or verPos->x != horPos->x) {
+                    if (vertEdge == vertEdges.end() or vertEdge->x != horizEdge->first.x) {
                         inside = !inside;
-                        newBorder.emplace_back(horPos->x);
+                        newVertEdges.emplace_back(horizEdge->first.x);
                     }
-                    if (verPos and verPos->x == horPos->x) {
-                        ++verIt;
-                        if (verIt == digBorder.end()) {
-                            verPos = {};
-                        } else {
-                            verPos = Vec2l{verIt->x, scanline};
-                        }
+                    if (vertEdge != vertEdges.end() and vertEdge->x == horizEdge->first.x) {
+                        ++vertEdge;
                     }
 
                     // connect end
-                    if (!verPos or verPos->x != horEnd->x) {
+                    if (vertEdge == vertEdges.end() or vertEdge->x != horizEdge->second.x) {
                         inside = !inside;
-                        newBorder.emplace_back(horEnd->x);
+                        newVertEdges.emplace_back(horizEdge->second.x);
                     }
-                    if (verPos and verPos->x == horEnd->x) {
-                        ++verIt;
-                        if (verIt == digBorder.end()) {
-                            verPos = {};
-                        } else {
-                            verPos = Vec2l{verIt->x, scanline};
-                        }
+                    if (vertEdge != vertEdges.end() and vertEdge->x == horizEdge->second.x) {
+                        ++vertEdge;
                     }
-                    ++horIt;
-                } else if (verPos) {
-                    newBorder.push_back(*verIt);
+                    ++horizEdge;
+                } else {
+                    // vertical edge is first
+                    newVertEdges.push_back(*vertEdge);
                     if (!inside) {
                         ++filled;
-                        xPos = verPos->x;
+                        xPos = vertEdge->x;
                     } else {
-                        filled += interval(xPos + 1, verPos->x);
-                        xPos = verPos->x;
+                        filled += interval(xPos + 1, vertEdge->x);
+                        xPos = vertEdge->x;
                     }
-                    ++verIt;
+                    ++vertEdge;
                     inside = !inside;
                 }
             }
-            digBorder = std::move(newBorder);
-            if (inside) {
-                fmt::print("Still inside on y={}?\n", scanline);
-                throw("inside out");
-            }
-
-            const auto nextScanline = findNextScanline(scanline);
+            vertEdges = std::move(newVertEdges);
 
             // fill between horizontal digs
+            const auto nextScanline = poly.findNextScanline(scanline);
             if (nextScanline > scanline + 1) {
                 const int64_t height = nextScanline - scanline - 1;
                 int64_t fillTiles = 0;
-                inside = false;
-                xPos = part2 ? min2.x : min.x;
-                for (const auto &stroke : digBorder) {
+                for (const auto &stroke : vertEdges) {
                     if (!inside) {
                         ++fillTiles;
                     } else {
@@ -235,8 +180,6 @@ struct Ground {
         }
         return filled;
     }
-
-    void print() const { ground.print(); }
 };
 
 int main(int argc, char **argv) {
