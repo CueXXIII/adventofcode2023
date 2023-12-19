@@ -67,8 +67,6 @@ struct Rule {
         default:
             return true;
         }
-        fmt::print("Bad Rule ({}{}{} -> {})\n", param, cond, value, dest);
-        return false;
     }
 };
 
@@ -119,14 +117,14 @@ struct Workflow {
             const auto value = rule.value;
             switch (rule.cond) {
             case '<':
-                temp.r[rule.param].y = value - 1;
+                temp.r[rule.param].y = std::min(temp.r[rule.param].y, value - 1);
                 result.push_back(temp);
-                current.r[rule.param].x = value;
+                current.r[rule.param].x = std::max(current.r[rule.param].x, value);
                 break;
             case '>':
-                temp.r[rule.param].x = value + 1;
+                temp.r[rule.param].x = std::max(temp.r[rule.param].x, value + 1);
                 result.push_back(temp);
-                current.r[rule.param].y = value;
+                current.r[rule.param].y = std::min(current.r[rule.param].y, value);
                 break;
             default:
                 result.push_back(temp);
