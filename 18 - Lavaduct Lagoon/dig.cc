@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <fmt/format.h>
 #include <iostream>
+#include <list>
 #include <ranges>
 #include <string>
 #include <vector>
@@ -84,17 +85,12 @@ struct Ground {
         poly2 = std::move(Poly{plan, true});
     }
 
-    // every corner is 90° (checked manually)
-    struct VertEdge {
-        int64_t x;
-    };
-
     // count tiles in inclusive interval
     static inline int64_t interval(const int64_t from, const int64_t to) { return to - from + 1; }
 
     int64_t fill2(const bool part2 = true) {
         int64_t filled = 0;
-        std::vector<VertEdge> vertEdges{};
+        std::list<int64_t> vertEdges{};
 
         auto &poly = part2 ? poly2 : poly1;
 
@@ -102,58 +98,57 @@ struct Ground {
         int64_t scanline = poly.minY;
 
         while (scanline < std::numeric_limits<int64_t>::max()) {
-            std::vector<std::pair<Vec2l, Vec2l>> horizEdges{};
+            // every corner is 90° (checked manually)
+            std::list<std::pair<int64_t, int64_t>> horizEdges{};
             for (const auto &edge : poly.edges) {
                 if (edge.first.y == scanline and edge.second.y == scanline) {
-                    horizEdges.push_back(edge);
+                    horizEdges.emplace_back(edge.first.x, edge.second.x);
                 }
             }
 
             // fill on horizontal digs
             bool inside = false;
             int64_t xPos{}; // filled up to this pos
-            std::vector<VertEdge> newVertEdges{};
-            auto horizEdge = horizEdges.begin();
-            auto vertEdge = vertEdges.begin();
-            while (horizEdge != horizEdges.end() or vertEdge != vertEdges.end()) {
+            std::list<int64_t> newVertEdges{};
+            while (!horizEdges.empty() or !vertEdges.empty()) {
                 // horizontal edge is first
-                if (horizEdge != horizEdges.end() and
-                    (vertEdge == vertEdges.end() or vertEdge->x >= horizEdge->first.x)) {
+                if (!horizEdges.empty() and
+                    (vertEdges.empty() or vertEdges.front() >= horizEdges.front().first)) {
                     if (inside) {
-                        filled += interval(xPos + 1, horizEdge->first.x - 1);
+                        filled += interval(xPos + 1, horizEdges.front().first - 1);
                     }
-                    filled += interval(horizEdge->first.x, horizEdge->second.x);
-                    xPos = horizEdge->second.x;
+                    filled += interval(horizEdges.front().first, horizEdges.front().second);
+                    xPos = horizEdges.front().second;
 
                     // connect begin
-                    if (vertEdge == vertEdges.end() or vertEdge->x != horizEdge->first.x) {
+                    if (vertEdges.empty() or vertEdges.front() != horizEdges.front().first) {
                         inside = !inside;
-                        newVertEdges.emplace_back(horizEdge->first.x);
+                        newVertEdges.emplace_back(horizEdges.front().first);
                     }
-                    if (vertEdge != vertEdges.end() and vertEdge->x == horizEdge->first.x) {
-                        ++vertEdge;
+                    if (!vertEdges.empty() and vertEdges.front() == horizEdges.front().first) {
+                        vertEdges.pop_front();
                     }
 
                     // connect end
-                    if (vertEdge == vertEdges.end() or vertEdge->x != horizEdge->second.x) {
+                    if (vertEdges.empty() or vertEdges.front() != horizEdges.front().second) {
                         inside = !inside;
-                        newVertEdges.emplace_back(horizEdge->second.x);
+                        newVertEdges.emplace_back(horizEdges.front().second);
                     }
-                    if (vertEdge != vertEdges.end() and vertEdge->x == horizEdge->second.x) {
-                        ++vertEdge;
+                    if (!vertEdges.empty() and vertEdges.front() == horizEdges.front().second) {
+                        vertEdges.pop_front();
                     }
-                    ++horizEdge;
+                    horizEdges.pop_front();
                 } else {
                     // vertical edge is first
-                    newVertEdges.push_back(*vertEdge);
+                    newVertEdges.push_back(vertEdges.front());
                     if (!inside) {
                         ++filled;
-                        xPos = vertEdge->x;
+                        xPos = vertEdges.front();
                     } else {
-                        filled += interval(xPos + 1, vertEdge->x);
-                        xPos = vertEdge->x;
+                        filled += interval(xPos + 1, vertEdges.front());
+                        xPos = vertEdges.front();
                     }
-                    ++vertEdge;
+                    vertEdges.pop_front();
                     inside = !inside;
                 }
             }
@@ -164,14 +159,14 @@ struct Ground {
             if (nextScanline > scanline + 1) {
                 const int64_t height = nextScanline - scanline - 1;
                 int64_t fillTiles = 0;
-                for (const auto &stroke : vertEdges) {
+                for (const auto &edge : vertEdges) {
                     if (!inside) {
                         ++fillTiles;
                     } else {
-                        fillTiles += interval(xPos + 1, stroke.x);
+                        fillTiles += interval(xPos + 1, edge);
                     }
                     inside = !inside;
-                    xPos = stroke.x;
+                    xPos = edge;
                 }
                 filled += fillTiles * height;
             }
