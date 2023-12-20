@@ -1,0 +1,17 @@
+digraph {
+button;
+roadcaster [label="broadcaster"];
+a [label="%a"];
+b [label="%b"];
+c [label="%c"];
+inv [label="&inv"];
+
+button -> roadcaster;
+a -> b;
+b -> c;
+c -> inv;
+inv -> a;
+roadcaster -> a;
+roadcaster -> b;
+roadcaster -> c;
+}

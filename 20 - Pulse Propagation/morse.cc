@@ -96,10 +96,12 @@ struct Machine {
         while (!scan.isEof()) {
             Module m{scan};
             modules[m.name] = m;
+            fmt::print("{} [label=\"{}{}\"];\n", m.name, m.type, m.name);
         }
         // connect inputs
         for (const auto &[name, mod] : modules) {
             for (const auto &out : modules[name].outputs) {
+                fmt::print("{} -> {};\n", name, out);
                 if (modules.contains(out)) {
                     modules[out].addInput(name);
                 } else {
