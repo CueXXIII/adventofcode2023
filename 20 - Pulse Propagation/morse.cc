@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <fmt/format.h>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <optional>
@@ -13,6 +14,18 @@
 
 using std::views::iota;
 using std::views::reverse;
+
+constexpr static std::array<std::array<std::string, 14>, 4> subgraphs = {
+    {{"km", "dr", "kg", "lv", "jc", "qr", "dk", "vj", "ps", "xf", "bd", "gg", "tp", "db"},
+     {"lr", "vg", "lf", "nb", "cg", "hx", "sb", "cx", "gp", "sj", "rm", "st", "vd", "tf"},
+     {"xh", "ql", "zx", "rq", "gr", "mn", "jh", "lm", "tr", "vp", "lp", "jt", "bk", "ln"},
+     {"rf", "dj", "gc", "cm", "rg", "sd", "jx", "cn", "mv", "hq", "fl", "sk", "pt", "vq"}}};
+constexpr static std::string finalModule = "tg";
+
+std::array<std::map<std::string, int64_t>, 4> substates{};
+int64_t buttonPresses = 0;
+std::array<bool, 4> finalHigh{};
+std::array<int64_t, 4> subloop{};
 
 enum Pulse { low, high, none };
 
@@ -71,17 +84,43 @@ struct Module {
             } else {
                 return low;
             }
-        case '&':
+        case '&': {
+            // debug pulses sent to dest
+            Pulse result = low;
             recentPulses[in] = pulse;
             for (const auto &[name, last] : recentPulses) {
                 if (last == low) {
-                    return high;
+                    result = high;
                 }
             }
-            return low;
+            if (name == finalModule) [[unlikely]] {
+                for (const auto num : iota(0, 4)) {
+                    if (recentPulses.at(subgraphs[num][13]) == high) {
+                        finalHigh[num] = true;
+                    }
+                }
+            }
+            return result;
+        }
         default:
             fmt::print("Invalid type {} on '{}'\n", type, name);
             return none;
+        }
+    }
+
+    std::string state() const {
+        switch (type) {
+        case '%':
+            return {stateOn ? "h" : "l"};
+        case '&': {
+            std::string result{'['};
+            for (const auto &[_, p] : recentPulses) {
+                result += "lh-"[p];
+            }
+            return result + ']';
+        }
+        default:
+            return "?";
         }
     }
 };
@@ -96,12 +135,10 @@ struct Machine {
         while (!scan.isEof()) {
             Module m{scan};
             modules[m.name] = m;
-            fmt::print("{} [label=\"{}{}\"];\n", m.name, m.type, m.name);
         }
         // connect inputs
         for (const auto &[name, mod] : modules) {
             for (const auto &out : modules[name].outputs) {
-                fmt::print("{} -> {};\n", name, out);
                 if (modules.contains(out)) {
                     modules[out].addInput(name);
                 } else {
@@ -111,8 +148,7 @@ struct Machine {
         }
     }
 
-    Pulse push(const bool debug = false) {
-        Pulse rxAcc = none;
+    void push(const bool debug = false) {
         // button pulse
         ++countLow;
         pulses.emplace("button", "roadcaster", low);
@@ -125,15 +161,9 @@ struct Machine {
             pulses.pop();
 
             if (!modules.contains(here)) {
-                if (debug) [[unlikely]] {
-                    fmt::print("==>{} received a {} pulse from {}\n", here, pulseName(pulse), from);
-                }
-                if (here == "rx") [[likely]] {
-                    if (pulse == low and rxAcc == none) {
-                        rxAcc = low;
-                    } else {
-                        rxAcc = high;
-                    }
+                if (pulse == low) {
+                    fmt::print("==>{} received {} from {} on button press {}\n", here,
+                               pulseName(pulse), from, buttonPresses);
                 }
             } else {
                 auto &currentModule = modules[here];
@@ -158,7 +188,16 @@ struct Machine {
         if (debug) [[unlikely]] {
             fmt::print("\n");
         }
-        return rxAcc;
+    }
+
+    std::string state(size_t subgraph = 0) const {
+        std::string result{};
+        for (const auto &name : subgraphs[subgraph]) {
+            if (modules.contains(name)) {
+                result += modules.at(name).state();
+            }
+        }
+        return result;
     }
 };
 
@@ -170,25 +209,51 @@ int main(int argc, char **argv) {
 
     SimpleParser scan{argv[1]};
     Machine m{scan};
-    for ([[maybe_unused]] const auto n : iota(0, 1000)) {
-        const auto rxVal = m.push();
-        if (rxVal == low) {
-            fmt::print("push {}: {}\n", n + 1, pulseName(rxVal));
+    int64_t loopSize = 0;
+    for (buttonPresses = 1;; ++buttonPresses) {
+        if (m.modules.contains(finalModule)) {
+            for (const auto num : iota(0, 4)) {
+                const auto state = m.state(num);
+                if (substates[num].contains(state)) {
+                    if (subloop[num] == 0) {
+                        fmt::print("Found loop on SG-{} length {} on {}th button press\n", num,
+                                   buttonPresses - 1 - substates[num][state], buttonPresses - 1);
+                        subloop[num] = buttonPresses - 1 - substates[num][state];
+                    }
+                } else {
+                    substates[num][state] = buttonPresses - 1;
+                }
+            }
         }
-    }
-    fmt::print("The elves calculate {} * {} = {}\n", m.countLow, m.countHigh,
-               m.countLow * m.countHigh);
-    return 0;
-    int64_t n = 1000;
-    for (;;) {
-        ++n;
-        const auto rxVal = m.push();
-        if ((n & ((1 << 15) - 1)) == 0) {
-            fmt::print("{}...\n", n);
+        finalHigh.fill(false);
+        m.push();
+
+        if (buttonPresses == 1000) {
+            fmt::print("The elves calculate {} * {} = {}\n\n", m.countLow, m.countHigh,
+                       m.countLow * m.countHigh);
+            if (!m.modules.contains(finalModule)) {
+                break;
+            }
         }
-        if (rxVal == low) {
+
+        for (const auto num : iota(0, 4)) {
+            if (finalHigh[num] == true) {
+                fmt::print("Module \"{}\" received high from \"{}\" on button press {}\n",
+                           finalModule, subgraphs[num][13], buttonPresses);
+            }
+        }
+
+        loopSize = std::ranges::fold_left(subloop, 1, std::multiplies<int64_t>());
+        if (loopSize > 0) {
+            fmt::print("Detected a total loop size of {}\n", loopSize);
             break;
         }
     }
-    fmt::print("The machine starts working after {} button presses\n", n);
+
+    // clear finalModule
+    m.push();
+    m.push();
+    m.push();
+
+    // TODO: set state to loopSize - 1 and press button
 }
