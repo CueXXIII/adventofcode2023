@@ -16,6 +16,19 @@ using std::views::reverse;
 
 enum Pulse { low, high, none };
 
+const std::string pulseName(const Pulse &p) {
+    switch (p) {
+    case low:
+        return "low";
+    case high:
+        return "high";
+    case none:
+        return "none";
+    default:
+        return "INV";
+    }
+}
+
 struct Module {
     std::string name; // broadcaster name is "roadcaster"
     char type;
@@ -96,11 +109,12 @@ struct Machine {
         }
     }
 
-    void push(const bool debug = false) {
+    Pulse push(const bool debug = false) {
+        Pulse rxAcc = none;
         // button pulse
         ++countLow;
         pulses.emplace("button", "roadcaster", low);
-        if (debug) {
+        if (debug) [[unlikely]] {
             fmt::print("button -low-> broadcaster\n");
         }
 
@@ -109,9 +123,15 @@ struct Machine {
             pulses.pop();
 
             if (!modules.contains(here)) {
-                if (debug) {
-                    fmt::print("==>{} received a {} pulse from {}\n", here,
-                               pulse == low ? "low" : "high", from);
+                if (debug) [[unlikely]] {
+                    fmt::print("==>{} received a {} pulse from {}\n", here, pulseName(pulse), from);
+                }
+                if (here == "rx") [[likely]] {
+                    if (pulse == low and rxAcc == none) {
+                        rxAcc = low;
+                    } else {
+                        rxAcc = high;
+                    }
                 }
             } else {
                 auto &currentModule = modules[here];
@@ -125,17 +145,18 @@ struct Machine {
                         }
                         pulses.emplace(here, dest, next);
 
-                        if (debug) {
+                        if (debug) [[unlikely]] {
                             fmt::print("{}{} -{}-> {}\n", currentModule.type, currentModule.name,
-                                       next == low ? "low" : "high", dest);
+                                       pulseName(next), dest);
                         }
                     }
                 }
             }
         }
-        if (debug) {
+        if (debug) [[unlikely]] {
             fmt::print("\n");
         }
+        return rxAcc;
     }
 };
 
@@ -148,8 +169,24 @@ int main(int argc, char **argv) {
     SimpleParser scan{argv[1]};
     Machine m{scan};
     for ([[maybe_unused]] const auto n : iota(0, 1000)) {
-        m.push();
+        const auto rxVal = m.push();
+        if (rxVal == low) {
+            fmt::print("push {}: {}\n", n + 1, pulseName(rxVal));
+        }
     }
     fmt::print("The elves calculate {} * {} = {}\n", m.countLow, m.countHigh,
                m.countLow * m.countHigh);
+    return 0;
+    int64_t n = 1000;
+    for (;;) {
+        ++n;
+        const auto rxVal = m.push();
+        if ((n & ((1 << 15) - 1)) == 0) {
+            fmt::print("{}...\n", n);
+        }
+        if (rxVal == low) {
+            break;
+        }
+    }
+    fmt::print("The machine starts working after {} button presses\n", n);
 }
