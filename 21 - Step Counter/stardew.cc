@@ -37,19 +37,19 @@ struct Garden {
     //                 +---+
     //                 | N |
     //             +---+---+---+
-    //             |NNW| N |NNE|
+    //             | NW| N | NE|
     //         +---+---+---+---+---+
-    //         | NW|NNW|   |NNE| NE|
+    //         | NW|   |   |   | NE|
     //     +---+---+---+---+---+---+---+
-    //     |WNW|WNW| NW|   | NE|ENE|ENE|
+    //     | NW|   | NW|   | NE|   | NE|
     // +---+---+---+---+===+---+---+---+---+
     // | W | W |   |   |###|   |   | E | E |
     // +---+---+---+---+===+---+---+---+---+
-    //     |WSW|WSW| SW|   | SE|ESE|ESE|
+    //     | SW|   | SW|   | SE|   | SE|
     //     +---+---+---+---+---+---+---+
-    //         | SW|SSW|   |SSE| SE|
+    //         | SW|   |   |   | SE|
     //         +---+---+---+---+---+
-    //             |SSW| S |SSE|
+    //             | SW| S | SE|
     //             +---+---+---+
     //                 | S |
     //                 +---+
@@ -57,24 +57,24 @@ struct Garden {
     // clang-format off
     static constexpr std::array<std::tuple<const char *, Vec2l, Vec2l>, 16> repeats = {{
             {"E",   { 3,  0}, { 4,  0}},
-            {"ENE", { 2, -1}, { 3, -1}},
+            {"ENE", { 1, -1}, { 3, -1}},
             {"NE",  { 1, -1}, { 2, -2}},
-            {"NNE", { 1, -2}, { 1, -3}},
+            {"NNE", { 1, -1}, { 1, -3}},
 
             {"N",   { 0, -3}, { 0, -4}},
-            {"NNW", {-1, -2}, {-1, -3}},
+            {"NNW", {-1, -1}, {-1, -3}},
             {"NW",  {-1, -1}, {-2, -2}},
-            {"WNW", {-2, -1}, {-3, -1}},
+            {"WNW", {-1, -1}, {-3, -1}},
 
             {"W",   {-3,  0}, {-4,  0}},
-            {"WSW", {-2,  1}, {-3,  1}},
+            {"WSW", {-1,  1}, {-3,  1}},
             {"SW",  {-1,  1}, {-2,  2}},
-            {"SSW", {-1,  2}, {-1,  3}},
+            {"SSW", {-1,  1}, {-1,  3}},
 
             {"S",   { 0,  3}, { 0,  4}},
-            {"SSE", { 1,  2}, { 1,  3}},
+            {"SSE", { 1,  1}, { 1,  3}},
             {"SE",  { 1,  1}, { 2,  2}},
-            {"ESE", { 2,  1}, { 3,  1}}
+            {"ESE", { 1,  1}, { 3,  1}}
         }};
     // clang-format on
 
@@ -88,7 +88,7 @@ struct Garden {
         }
         calcDist();
         calcModDist();
-        checkLoops();
+        // checkLoops();
     }
 
     void calcDist() {
@@ -185,72 +185,23 @@ struct Garden {
         }
     }
 
-    static std::string quadSig(const Vec2l &quad) {
-        std::string result{};
-        result += quad.x < 0 ? '-' : (quad.x > 0 ? '+' : '=');
-        result += quad.y < 0 ? '-' : (quad.y > 0 ? '+' : '=');
-        if (std::abs(quad.x) == std::abs(quad.y))
-            result += 'd';
-        return result;
-    }
-
     int64_t getModDist(const Vec2l &pos) const {
         const auto quad = Vec2l{floordiv(pos.x, garden.width), floordiv(pos.y, garden.height)};
-        const auto quadDist = std::abs(quad.x) + std::abs(quad.y);
-        if (quadDist <= 3) {
-            if (distancesMod.contains(pos)) {
-                return distancesMod.at(pos);
-            } else {
-                return -1;
+        Vec2l qStep{0, 0};
+
+        if (quad.x == 0 or quad.y == 0) {
+            if (std::abs(quad.x) > 3 or std::abs(quad.y) > 3) {
+                // *3 is needed for the example input
+                qStep = quad - signum(quad) * 3;
             }
-        }
-
-        bool debug = false;
-
-        int64_t qStepX = 0;
-        int64_t qStepY = 0;
-
-        if (quad.x == 0) {
-            qStepY = (std::abs(quad.y) - 3) * signum(quad.y);
-        } else if (quad.y == 0) {
-            qStepX = (std::abs(quad.x) - 3) * signum(quad.x);
-        } else if (std::abs(quad.x) >= 2 and std::abs(quad.y) >= 2) {
-            const auto moves = std::min(std::abs(quad.x), std::abs(quad.y)) - 1;
-            qStepX = moves * signum(quad.x);
-            qStepY = moves * signum(quad.y);
         } else {
-            if (std::abs(quad.y) == 1 and std::abs(quad.x) > 1) {
-                qStepX = (std::abs(quad.x) - 2) * signum(quad.x);
-            } else if (std::abs(quad.x) == 1 and std::abs(quad.y) > 1) {
-                qStepY = (std::abs(quad.y) - 2) * signum(quad.y);
-            }
+            qStep = quad - signum(quad);
         }
 
-        const Vec2l qStep{qStepX, qStepY};
-
-        const auto newPos = pos - qStep * garden.width;
-        const auto quad2 =
-            Vec2l{floordiv(newPos.x, garden.width), floordiv(newPos.y, garden.height)};
-        if (true || debug) {
-            if (quadSig(quad) != quadSig(quad2)) {
-                fmt::print("{} => {} (with  {})\n", quad, quad2, qStep);
-                fmt::print("quad changed!\n");
-            }
-        }
-
-        if (qStep == Vec2l{0, 0}) {
-            if (debug) {
-                fmt::print("not in quad {}: {} - ", quad, pos);
-                fmt::print("not yet implemented\n");
-            }
-            return -1;
-        }
-        if (debug) {
-            fmt::print("{} => {}\n", pos, pos - qStep * garden.width);
-        }
-        const auto result = getModDist(pos - qStep * garden.width);
-        if (result > -1) {
-            return result + manhattan(qStep, {0, 0}) * garden.width;
+        const auto adjustedPos = pos - qStep * garden.width;
+        const auto adjustedSteps = manhattan(qStep, {0, 0}) * garden.width;
+        if (distancesMod.contains(adjustedPos)) {
+            return distancesMod.at(adjustedPos) + adjustedSteps;
         } else {
             return -1;
         }
