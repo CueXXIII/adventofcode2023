@@ -4,6 +4,7 @@
 #include <iostream>
 #include <queue>
 #include <ranges>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -23,8 +24,8 @@ struct Brick {
     Vec3l start{};
     Vec3l end{};
 
-    std::vector<size_t> supports{};
-    std::vector<size_t> supported_by{};
+    std::set<size_t> supports{};
+    std::set<size_t> supported_by{};
 
     Brick() = default;
     Brick(SimpleParser &scan) {
@@ -48,23 +49,10 @@ struct Brick {
     int64_t size() const { return manhattan(start, end); }
 };
 
-struct Edge {
-    size_t from;
-    size_t to;
-    bool operator==(const Edge &other) const { return from == other.from and to == other.to; }
-};
-
-template <> struct std::hash<Edge> {
-    constexpr std::size_t operator()(const Edge &e) const noexcept {
-        return e.from * 2023u + e.to * 20231222u;
-    }
-};
-
 struct Stack {
     std::vector<Brick> bricks{};
     std::unordered_map<Vec3l, size_t> occupied{};
     Brick ground{};
-    std::unordered_set<Edge> edges{};
 
     Stack(SimpleParser &scan) {
         while (!scan.isEof()) {
@@ -124,38 +112,28 @@ struct Stack {
     }
 
     void findSupport() {
-        for (const auto &[pos, id] : occupied) {
+        for (const auto &[pos, fromId] : occupied) {
             const auto above = pos + Vec3l{0, 0, 1};
             if (occupied.contains(above)) {
-                const auto aid = occupied.at(above);
-                if (aid != id) {
-                    edges.emplace(id, aid);
+                const auto toId = occupied.at(above);
+                if (toId != fromId) {
+                    bricks[fromId].supports.insert(toId);
+                    bricks[toId].supported_by.insert(fromId);
                 }
             }
             if (pos.z == 1) {
                 if constexpr (debug) {
-                    fmt::print("{} at ground level\n", id);
+                    fmt::print("{} at ground level\n", fromId);
                 }
-                edges.emplace(groundId, id);
-            }
-        }
-        for (const auto &[from, to] : edges) {
-            if constexpr (debug) {
-                fmt::print("Edge [{}, {}]\n", from, to);
-            }
-            if (from != groundId) {
-                bricks[from].supports.push_back(to);
-                bricks[to].supported_by.push_back(from);
-            } else {
-                ground.supports.push_back(to);
+                ground.supports.insert(fromId);
             }
         }
     };
 
-    std::pair<int64_t, std::vector<int64_t>> evaluateSupport() const {
-        std::pair<int64_t, std::vector<int64_t>> result{0, {}};
+    std::pair<int64_t, int64_t> evaluateSupport() const {
+        std::pair<int64_t, int64_t> result{0, 0};
         auto &disintegrateCount = result.first;
-        auto &essentials = result.second;
+        auto &failCount = result.second;
         for (const auto id : iota(0u, bricks.size())) {
             bool isSingleSupport = false;
             for (const auto suppId : bricks[id].supports) {
@@ -169,7 +147,11 @@ struct Stack {
                 }
                 ++disintegrateCount;
             } else {
-                essentials.push_back(id);
+                const auto fails = fallIfDisintegrated(id);
+                if constexpr (debug) {
+                    fmt::print("Disintegrating brick {} leaves {} bricks dangling\n", id, fails);
+                }
+                failCount += fails;
             }
         }
         return result;
@@ -215,14 +197,5 @@ int main(int argc, char **argv) {
     Stack jenga{scan};
     const auto brickReport = jenga.evaluateSupport();
     fmt::print("You may disintegrate any of {} bricks\n", brickReport.first);
-
-    int64_t sumDanglingBricks = 0;
-    for (const auto removeId : brickReport.second) {
-        const auto dangling = jenga.fallIfDisintegrated(removeId);
-        sumDanglingBricks += dangling;
-        if constexpr (debug) {
-            fmt::print("Disintegrating brick {} leaves {} bricks dangling\n", removeId, dangling);
-        }
-    }
-    fmt::print("You can make {} bricks fall\n", sumDanglingBricks);
+    fmt::print("You can make {} bricks fall\n", brickReport.second);
 }
