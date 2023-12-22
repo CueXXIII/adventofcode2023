@@ -17,10 +17,9 @@ using std::views::iota;
 using std::views::reverse;
 
 constexpr static bool debug = false;
-constexpr static size_t groundId = 2023; // std::numeric_limits<size_t>::max();
+constexpr static size_t groundId = 2023;
 
 struct Brick {
-    const char name{'#'};
     Vec3l start{};
     Vec3l end{};
 
@@ -28,7 +27,7 @@ struct Brick {
     std::vector<size_t> supported_by{};
 
     Brick() = default;
-    Brick(SimpleParser &scan, const char name = '#') : name(name) {
+    Brick(SimpleParser &scan) {
         start.x = scan.getInt64();
         scan.skipChar(',');
         start.y = scan.getInt64();
@@ -57,7 +56,7 @@ struct Edge {
 
 template <> struct std::hash<Edge> {
     constexpr std::size_t operator()(const Edge &e) const noexcept {
-        return e.from * 1001 + e.to * 2642257;
+        return e.from * 2023u + e.to * 20231222u;
     }
 };
 
@@ -68,14 +67,17 @@ struct Stack {
     std::unordered_set<Edge> edges{};
 
     Stack(SimpleParser &scan) {
-        char brickId = 0;
         while (!scan.isEof()) {
-            bricks.emplace_back(scan, static_cast<char>(++brickId) + '@');
-            if (brickId == 26) {
-                brickId = 0;
-            }
-            putBrick(bricks.size() - 1);
+            bricks.emplace_back(scan);
         }
+
+        std::ranges::sort(
+            bricks, [](const auto &lhs, const auto &rhs) { return lhs.start.z < rhs.start.z; });
+
+        for (const auto id : iota(0u, bricks.size())) {
+            dropBrick(id);
+        }
+        findSupport();
     }
 
     void putBrick(size_t id) {
@@ -83,8 +85,10 @@ struct Stack {
         for (const auto x : iota(brick.start.x, brick.end.x + 1)) {
             for (const auto y : iota(brick.start.y, brick.end.y + 1)) {
                 for (const auto z : iota(brick.start.z, brick.end.z + 1)) {
-                    if (debug and occupied.contains({x, y, z})) {
-                        fmt::print("Failed to place brick {} at {}!\n", id, Vec3l{x, y, z});
+                    if constexpr (debug) {
+                        if (occupied.contains({x, y, z})) {
+                            fmt::print("Failed to place brick {} at {}!\n", id, Vec3l{x, y, z});
+                        }
                     }
                     occupied[{x, y, z}] = id;
                 }
@@ -92,25 +96,7 @@ struct Stack {
         }
     }
 
-    void eraseBrick(size_t id) {
-        const auto &brick = bricks[id];
-        for (const auto x : iota(brick.start.x, brick.end.x + 1)) {
-            for (const auto y : iota(brick.start.y, brick.end.y + 1)) {
-                for (const auto z : iota(brick.start.z, brick.end.z + 1)) {
-                    if (debug and occupied.at({x, y, z}) != id) {
-                        fmt::print("Failed to remove brick {} [{}, {}] from {}!\n", id, brick.start,
-                                   brick.end, Vec3l{x, y, z});
-                        const auto &oid = occupied.at({x, y, z});
-                        fmt::print("Found brick {} [{}, {}] there\n", oid, bricks[oid].start,
-                                   bricks[oid].end);
-                    }
-                    occupied.erase({x, y, z});
-                }
-            }
-        }
-    }
-
-    bool dropBrick(size_t id) {
+    void dropBrick(size_t id) {
         auto &brick = bricks[id];
         const auto zOld = brick.start.z;
         auto zNew = zOld;
@@ -129,31 +115,15 @@ struct Stack {
             }
             zNew = z;
         }
-        if (zOld == zNew) {
-            return false;
-        }
         if constexpr (false) {
             fmt::print("Moving brick {} down {}\n", id, zOld - zNew);
         }
-        eraseBrick(id);
         brick.start -= {0, 0, zOld - zNew};
         brick.end -= {0, 0, zOld - zNew};
         putBrick(id);
-        return true;
-    }
-
-    void dropAllBricks() {
-        bool brickDropped = false;
-        do {
-            brickDropped = false;
-            for (const auto id : iota(0u, bricks.size())) {
-                brickDropped |= dropBrick(id);
-            }
-        } while (brickDropped);
     }
 
     void findSupport() {
-        edges.clear();
         for (const auto &[pos, id] : occupied) {
             const auto above = pos + Vec3l{0, 0, 1};
             if (occupied.contains(above)) {
@@ -182,9 +152,10 @@ struct Stack {
         }
     };
 
-    std::pair<std::vector<int64_t>, std::vector<int64_t>> findRemovables() const {
-        std::vector<int64_t> removables{};
-        std::vector<int64_t> essentials{};
+    std::pair<int64_t, std::vector<int64_t>> evaluateSupport() const {
+        std::pair<int64_t, std::vector<int64_t>> result{0, {}};
+        auto &disintegrateCount = result.first;
+        auto &essentials = result.second;
         for (const auto id : iota(0u, bricks.size())) {
             bool isSingleSupport = false;
             for (const auto suppId : bricks[id].supports) {
@@ -193,42 +164,15 @@ struct Stack {
                 }
             }
             if (!isSingleSupport) {
-                removables.push_back(id);
+                if constexpr (debug) {
+                    fmt::print("can disintegrate brick {}\n", id);
+                }
+                ++disintegrateCount;
             } else {
                 essentials.push_back(id);
             }
         }
-        return {removables, essentials};
-    }
-
-    void printExample() const {
-        for (const auto z : iota(0, 10) | reverse) {
-            for (const auto x : iota(0, 3)) {
-                char pos = '.';
-                for (const auto y : iota(0, 3)) {
-                    if (occupied.contains({x, y, z})) {
-                        pos = bricks[occupied.at({x, y, z})].name;
-                    }
-                }
-                std::cout << pos;
-            }
-            std::cout << '\n';
-        }
-
-        std::cout << '\n';
-        for (const auto z : iota(0, 10) | reverse) {
-            for (const auto y : iota(0, 3)) {
-                char pos = '.';
-                for (const auto x : iota(0, 3)) {
-                    if (occupied.contains({x, y, z})) {
-                        pos = bricks[occupied.at({x, y, z})].name;
-                    }
-                }
-                std::cout << pos;
-            }
-            std::cout << '\n';
-        }
-        std::cout << '\n';
+        return result;
     }
 
     int64_t fallIfDisintegrated(const size_t id) const {
@@ -236,7 +180,7 @@ struct Stack {
         bfs(groundId, id, visited);
         return bfs(id, id, visited);
     }
-    int64_t bfs(const auto &start, const auto &removed, auto &visited) const {
+    int64_t bfs(const auto &start, const auto &disintegrated, auto &visited) const {
         int64_t count = 0;
         std::queue<size_t> frontier{};
         frontier.push(start);
@@ -246,7 +190,7 @@ struct Stack {
 
             for (const auto nextId :
                  currentId == groundId ? ground.supports : bricks[currentId].supports) {
-                if (nextId == removed) {
+                if (nextId == disintegrated) {
                     continue;
                 }
                 if (visited.contains(nextId)) {
@@ -269,24 +213,15 @@ int main(int argc, char **argv) {
 
     SimpleParser scan{argv[1]};
     Stack jenga{scan};
-    // jenga.printExample();
-    jenga.dropAllBricks();
-    // jenga.printExample();
-    jenga.findSupport();
-    const auto removables = jenga.findRemovables();
-    if constexpr (debug) {
-        for (const auto &r : removables.first) {
-            fmt::print("can disintegrate brick {}\n", r);
-        }
-    }
-    fmt::print("You may disintegrate any of {} bricks\n", removables.first.size());
+    const auto brickReport = jenga.evaluateSupport();
+    fmt::print("You may disintegrate any of {} bricks\n", brickReport.first);
 
     int64_t sumDanglingBricks = 0;
-    for (const auto id : removables.second) {
-        const auto dangling = jenga.fallIfDisintegrated(id);
+    for (const auto removeId : brickReport.second) {
+        const auto dangling = jenga.fallIfDisintegrated(removeId);
         sumDanglingBricks += dangling;
         if constexpr (debug) {
-            fmt::print("Disintegrating brick {} leaves {} bricks dangling\n", id, dangling);
+            fmt::print("Disintegrating brick {} leaves {} bricks dangling\n", removeId, dangling);
         }
     }
     fmt::print("You can make {} bricks fall\n", sumDanglingBricks);
