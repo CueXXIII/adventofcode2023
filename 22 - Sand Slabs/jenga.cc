@@ -18,14 +18,13 @@ using std::views::iota;
 using std::views::reverse;
 
 constexpr static bool debug = false;
-constexpr static size_t groundId = 2023;
 
 struct Brick {
     Vec3l start{};
     Vec3l end{};
 
     std::set<size_t> supports{};
-    std::set<size_t> supported_by{};
+    std::set<size_t> supportedBy{};
 
     Brick() = default;
     Brick(SimpleParser &scan) {
@@ -52,7 +51,6 @@ struct Brick {
 struct Stack {
     std::vector<Brick> bricks{};
     std::unordered_map<Vec3l, size_t> occupied{};
-    Brick ground{};
 
     Stack(SimpleParser &scan) {
         while (!scan.isEof()) {
@@ -115,17 +113,16 @@ struct Stack {
         for (const auto &[pos, fromId] : occupied) {
             const auto above = pos + Vec3l{0, 0, 1};
             if (occupied.contains(above)) {
-                const auto toId = occupied.at(above);
+                const auto toId = occupied[above];
                 if (toId != fromId) {
                     bricks[fromId].supports.insert(toId);
-                    bricks[toId].supported_by.insert(fromId);
+                    bricks[toId].supportedBy.insert(fromId);
                 }
             }
-            if (pos.z == 1) {
-                if constexpr (debug) {
+            if constexpr (debug) {
+                if (pos.z == 1) {
                     fmt::print("{} at ground level\n", fromId);
                 }
-                ground.supports.insert(fromId);
             }
         }
     };
@@ -137,7 +134,7 @@ struct Stack {
         for (const auto id : iota(0u, bricks.size())) {
             bool isSingleSupport = false;
             for (const auto suppId : bricks[id].supports) {
-                if (bricks[suppId].supported_by.size() == 1) {
+                if (bricks[suppId].supportedBy.size() == 1) {
                     isSingleSupport = true;
                 }
             }
@@ -157,25 +154,31 @@ struct Stack {
         return result;
     }
 
-    int64_t fallIfDisintegrated(const size_t id) const {
-        std::unordered_set<size_t> visited{};
-        bfs(groundId, id, visited);
-        return bfs(id, id, visited);
+    bool hasSupportersIn(const auto nextId, const auto &visited) const {
+        for (const auto supporterId : bricks[nextId].supportedBy) {
+            if (!visited.contains(supporterId)) {
+                return true;
+            }
+        }
+        return false;
     }
-    int64_t bfs(const auto &start, const auto &disintegrated, auto &visited) const {
+
+    // basically a BFS
+    int64_t fallIfDisintegrated(const size_t start) const {
         int64_t count = 0;
         std::queue<size_t> frontier{};
+        std::unordered_set<size_t> visited{};
         frontier.push(start);
+        visited.insert(start);
         while (!frontier.empty()) {
             const auto currentId = frontier.front();
             frontier.pop();
 
-            for (const auto nextId :
-                 currentId == groundId ? ground.supports : bricks[currentId].supports) {
-                if (nextId == disintegrated) {
+            for (const auto nextId : bricks[currentId].supports) {
+                if (visited.contains(nextId)) {
                     continue;
                 }
-                if (visited.contains(nextId)) {
+                if (hasSupportersIn(nextId, visited)) {
                     continue;
                 }
                 frontier.push(nextId);
