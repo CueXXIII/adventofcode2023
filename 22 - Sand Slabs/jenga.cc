@@ -2,6 +2,7 @@
 #include <fmt/format.h>
 #include <fstream>
 #include <iostream>
+#include <queue>
 #include <ranges>
 #include <string>
 #include <unordered_map>
@@ -12,19 +13,21 @@
 #include "utility.hpp"
 #include "vec3.hpp"
 
-constexpr static bool debug = true;
-
 using std::views::iota;
-using std::views::reverse; // for iota(0,10) | reverse
+using std::views::reverse;
+
+constexpr static bool debug = false;
+constexpr static size_t groundId = 2023; // std::numeric_limits<size_t>::max();
 
 struct Brick {
-    const char name{};
+    const char name{'#'};
     Vec3l start{};
     Vec3l end{};
 
     std::vector<size_t> supports{};
     std::vector<size_t> supported_by{};
 
+    Brick() = default;
     Brick(SimpleParser &scan, const char name = '#') : name(name) {
         start.x = scan.getInt64();
         scan.skipChar(',');
@@ -61,6 +64,7 @@ template <> struct std::hash<Edge> {
 struct Stack {
     std::vector<Brick> bricks{};
     std::unordered_map<Vec3l, size_t> occupied{};
+    Brick ground{};
     std::unordered_set<Edge> edges{};
 
     Stack(SimpleParser &scan) {
@@ -158,16 +162,29 @@ struct Stack {
                     edges.emplace(id, aid);
                 }
             }
+            if (pos.z == 1) {
+                if constexpr (debug) {
+                    fmt::print("{} at ground level\n", id);
+                }
+                edges.emplace(groundId, id);
+            }
         }
         for (const auto &[from, to] : edges) {
-            fmt::print("Edge [{}, {}]\n", from, to);
-            bricks[from].supports.push_back(to);
-            bricks[to].supported_by.push_back(from);
+            if constexpr (debug) {
+                fmt::print("Edge [{}, {}]\n", from, to);
+            }
+            if (from != groundId) {
+                bricks[from].supports.push_back(to);
+                bricks[to].supported_by.push_back(from);
+            } else {
+                ground.supports.push_back(to);
+            }
         }
     };
 
-    std::vector<int64_t> findRemovables() const {
+    std::pair<std::vector<int64_t>, std::vector<int64_t>> findRemovables() const {
         std::vector<int64_t> removables{};
+        std::vector<int64_t> essentials{};
         for (const auto id : iota(0u, bricks.size())) {
             bool isSingleSupport = false;
             for (const auto suppId : bricks[id].supports) {
@@ -177,9 +194,11 @@ struct Stack {
             }
             if (!isSingleSupport) {
                 removables.push_back(id);
+            } else {
+                essentials.push_back(id);
             }
         }
-        return removables;
+        return {removables, essentials};
     }
 
     void printExample() const {
@@ -211,6 +230,35 @@ struct Stack {
         }
         std::cout << '\n';
     }
+
+    int64_t fallIfDisintegrated(const size_t id) const {
+        std::unordered_set<size_t> visited{};
+        bfs(groundId, id, visited);
+        return bfs(id, id, visited);
+    }
+    int64_t bfs(const auto &start, const auto &removed, auto &visited) const {
+        int64_t count = 0;
+        std::queue<size_t> frontier{};
+        frontier.push(start);
+        while (!frontier.empty()) {
+            const auto currentId = frontier.front();
+            frontier.pop();
+
+            for (const auto nextId :
+                 currentId == groundId ? ground.supports : bricks[currentId].supports) {
+                if (nextId == removed) {
+                    continue;
+                }
+                if (visited.contains(nextId)) {
+                    continue;
+                }
+                frontier.push(nextId);
+                visited.insert(nextId);
+                ++count;
+            }
+        }
+        return count;
+    }
 };
 
 int main(int argc, char **argv) {
@@ -226,8 +274,20 @@ int main(int argc, char **argv) {
     // jenga.printExample();
     jenga.findSupport();
     const auto removables = jenga.findRemovables();
-    for (const auto &r : removables) {
-        fmt::print("can disintegrate brick {}\n", r);
+    if constexpr (debug) {
+        for (const auto &r : removables.first) {
+            fmt::print("can disintegrate brick {}\n", r);
+        }
     }
-    fmt::print("You may disintegrate any of {} bricks\n", removables.size());
+    fmt::print("You may disintegrate any of {} bricks\n", removables.first.size());
+
+    int64_t sumDanglingBricks = 0;
+    for (const auto id : removables.second) {
+        const auto dangling = jenga.fallIfDisintegrated(id);
+        sumDanglingBricks += dangling;
+        if constexpr (debug) {
+            fmt::print("Disintegrating brick {} leaves {} bricks dangling\n", id, dangling);
+        }
+    }
+    fmt::print("You can make {} bricks fall\n", sumDanglingBricks);
 }
