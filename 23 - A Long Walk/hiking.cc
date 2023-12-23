@@ -31,11 +31,28 @@ template <> struct std::hash<Edge> {
     }
 };
 
+struct Vertice {
+    Vec2l position{};
+    // directed edges
+    std::unordered_set<Edge> edgeFrom{};
+    std::unordered_set<Edge> edgeTo{};
+    // undirected edges
+    std::unordered_set<Edge> unEdgeFrom{};
+    std::unordered_set<Edge> unEdgeTo{};
+
+    bool operator==(const Vertice &other) const noexcept { return position == other.position; }
+};
+
+template <> struct std::hash<Vertice> {
+    constexpr std::size_t operator()(const Vertice &v) const noexcept {
+        return std::hash<Vec2l>{}(v.position);
+    }
+};
+
 struct Island {
     Grid<char> hikingMap{};
     Grid<int8_t> hikingArea{};
-    std::unordered_set<Vec2l> vertices{};
-    std::unordered_set<Edge> edges{}; // unsorted
+    std::unordered_map<Vec2l, Vertice> vertices{};
     std::vector<Vec2l> sortedVertices{};
 
     const Vec2l startHiking{};
@@ -45,19 +62,20 @@ struct Island {
         for (const auto y : iota(0, hikingMap.height)) {
             for (const auto x : iota(0, hikingMap.width)) {
                 if (hikingMap[x, y] != '#' and hikingMap[x, y] != '.') {
-                    vertices.emplace(x, y);
+                    vertices[{x, y}] = Vertice{Vec2l{x, y}};
                 }
             }
         }
     }
 
     void findEdges() {
-        for (const auto &start : vertices) {
-            findPaths(start);
+        for (const auto &[start, vertice_] : vertices) {
+            findDirectedPaths(start);
+            findUndirectedPaths(start);
         }
     }
 
-    void findPaths(const Vec2l &startPos) {
+    void findDirectedPaths(const Vec2l &startPos) {
         Vec2l pos{};
         switch (hikingMap[startPos]) {
         case '>':
@@ -76,26 +94,30 @@ struct Island {
 
         std::queue<Edge> frontier{};
         frontier.emplace(startPos, pos, 1);
+        int64_t edgeCount = 0;
 
         while (!frontier.empty()) {
             const auto [prevPos, curPos, steps] = frontier.front();
             frontier.pop();
-            if (edges.contains({startPos, curPos, steps})) [[unlikely]] {
-                fmt::print("loop found\n");
-                throw std::runtime_error("loop");
-            }
+
             switch (hikingMap[curPos]) {
             case 'E':
-                edges.emplace(startPos, curPos, steps);
+                vertices[startPos].edgeTo.emplace(startPos, curPos, steps);
+                vertices[curPos].edgeFrom.emplace(startPos, curPos, steps);
+                ++edgeCount;
                 break;
             case '>':
                 if (curPos - prevPos == neighbours4[0]) {
-                    edges.emplace(startPos, curPos, steps);
+                    vertices[startPos].edgeTo.emplace(startPos, curPos, steps);
+                    vertices[curPos].edgeFrom.emplace(startPos, curPos, steps);
+                    ++edgeCount;
                 }
                 break;
             case 'v':
                 if (curPos - prevPos == neighbours4[3]) {
-                    edges.emplace(startPos, curPos, steps);
+                    vertices[startPos].edgeTo.emplace(startPos, curPos, steps);
+                    vertices[curPos].edgeFrom.emplace(startPos, curPos, steps);
+                    ++edgeCount;
                 }
                 break;
             case '.':
@@ -112,6 +134,47 @@ struct Island {
                 fmt::print("to slope '{}' at {} not implemented\n", hikingMap[curPos], curPos);
                 throw std::runtime_error("invalid to slope");
             }
+        }
+        if (edgeCount > 2) {
+            fmt::print("Vertice {} has {} edges.\n", startPos, edgeCount);
+        }
+    }
+
+    void findUndirectedPaths(const Vec2l &startPos) {
+        std::queue<Edge> frontier{};
+        frontier.emplace(startPos, startPos, 0);
+        int64_t edgeCount = 0;
+
+        while (!frontier.empty()) {
+            const auto [prevPos, curPos, steps] = frontier.front();
+            frontier.pop();
+
+            switch (curPos == startPos ? '.' : hikingMap[curPos]) {
+            case 'S':
+            case 'E':
+            case '>':
+            case 'v':
+                vertices[startPos].unEdgeTo.emplace(startPos, curPos, steps);
+                vertices[curPos].unEdgeFrom.emplace(startPos, curPos, steps);
+                ++edgeCount;
+                break;
+            case '.':
+                for (const auto &dir : neighbours4) {
+                    const auto nextPos = curPos + dir;
+                    if (nextPos != prevPos) {
+                        if (hikingMap[nextPos] != '#') {
+                            frontier.emplace(curPos, nextPos, steps + 1);
+                        }
+                    }
+                }
+                break;
+            default:
+                fmt::print("to slope '{}' at {} not implemented\n", hikingMap[curPos], curPos);
+                throw std::runtime_error("invalid to slope");
+            }
+        }
+        if (edgeCount > 4) {
+            fmt::print("Vertice {} has {} undirected edges.\n", startPos, edgeCount);
         }
     }
 
@@ -131,14 +194,14 @@ struct Island {
             // add n to L
             sortedVertices.push_back(current);
             // for each node m with an edge e from n to m do
-            for (const auto &edge : edges) {
-                if (!visitedEdges.contains(edge) and edge.from == current) {
+            for (const auto &edge : vertices[current].edgeTo) {
+                if (!visitedEdges.contains(edge)) {
                     // remove edge e from the graph
                     visitedEdges.insert(edge);
                     // if m has no other incoming edges then
                     bool hasIncomingEdge = false;
-                    for (const auto &incomingEdge : edges) {
-                        if (!visitedEdges.contains(incomingEdge) and incomingEdge.to == edge.to) {
+                    for (const auto &incomingEdge : vertices[edge.to].edgeFrom) {
+                        if (!visitedEdges.contains(incomingEdge)) {
                             hasIncomingEdge = true;
                             break;
                         }
@@ -150,35 +213,41 @@ struct Island {
                 }
             }
         }
-        if (edges.size() != visitedEdges.size()) {
-            fmt::print("error: graph has at least one cycle\n");
-        }
     }
 
-    void findLongestPath() const {
+    int64_t findLongestPath() const {
         std::unordered_map<Vec2l, int64_t> distances{};
         for (const auto &vertice : sortedVertices) {
             distances[vertice] = 0;
         }
 
         for (const auto &vertice : sortedVertices) {
-            if (distances[vertice] == 0) {
-                fmt::print("not yet visited: {}\n", vertice);
-            }
-            for (const auto &edge : edges) {
-                if (edge.from == vertice) {
-                    distances[edge.to] =
-                        std::max(distances[edge.to], distances[vertice] + edge.len);
-                }
+            for (const auto &edge : vertices.at(vertice).edgeTo) {
+                distances[edge.to] = std::max(distances[edge.to], distances[vertice] + edge.len);
             }
         }
 
-        for (const auto &vertice : sortedVertices) {
-            fmt::print("Longest path to ({}, {})vi is {}\n", vertice.y + 1, vertice.x + 1,
-                       distances[vertice]);
-        }
+        return distances[endHiking];
+    }
 
-        fmt::print("The longest path is {}\n", distances[endHiking]);
+    int64_t findUpslopePath() const {
+        std::unordered_set<Vec2l> visited{};
+        return dfs2(startHiking, visited);
+    }
+
+    int64_t dfs2(const Vec2l &position, std::unordered_set<Vec2l> &visited) const {
+        int64_t result = 0;
+        for (const auto &edge : vertices.at(position).unEdgeTo) {
+            const auto &nextPos = edge.to;
+            if (nextPos == endHiking) {
+                result = std::max(result, edge.len);
+            } else if (!visited.contains(nextPos)) {
+                visited.insert(nextPos);
+                result = std::max(result, dfs2(edge.to, visited) + edge.len);
+                visited.erase(nextPos);
+            }
+        }
+        return result;
     }
 
     Island(const char *file)
@@ -189,14 +258,7 @@ struct Island {
         findVertices();
         findEdges();
         sortVertices();
-        findLongestPath();
-
-        for (const auto &e : edges) {
-            fmt::print("Edge {} -> {} size {}\n", e.from, e.to, e.len);
-        }
-        for (const auto &v : sortedVertices) {
-            fmt::print("Vertice {}\n", v);
-        }
+        fmt::print("The graph has {} vertices\n", vertices.size());
     }
 };
 
@@ -206,5 +268,7 @@ int main(int argc, char **argv) {
         std::exit(EXIT_FAILURE);
     }
 
-    Island snow{argv[1]};
+    Island snowIsland{argv[1]};
+
+    fmt::print("The longest path has {} steps\n", snowIsland.findLongestPath());
 }
