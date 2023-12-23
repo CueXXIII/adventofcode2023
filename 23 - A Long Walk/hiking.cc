@@ -4,6 +4,7 @@
 #include <iostream>
 #include <queue>
 #include <ranges>
+#include <stack>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -18,6 +19,7 @@ struct Edge {
     Vec2l from{};
     Vec2l to{};
     int64_t len{};
+    int8_t area{-1};
 
     bool operator==(const Edge &other) const noexcept {
         return from == other.from and to == other.to and len == other.len;
@@ -69,13 +71,17 @@ struct Island {
     }
 
     void findEdges() {
+        int8_t area = 0;
         for (const auto &[start, vertice_] : vertices) {
-            findDirectedPaths(start);
+            findDirectedPaths(start, area);
+        }
+        for (const auto &[start, vertice_] : vertices) {
             findUndirectedPaths(start);
         }
+        fmt::print("Found {} areas\n", area);
     }
 
-    void findDirectedPaths(const Vec2l &startPos) {
+    void findDirectedPaths(const Vec2l &startPos, int8_t &area) {
         Vec2l pos{};
         switch (hikingMap[startPos]) {
         case '>':
@@ -92,24 +98,46 @@ struct Island {
             throw std::runtime_error("invalid from slope");
         }
 
-        std::queue<Edge> frontier{};
+        std::stack<Edge> frontier{};
         frontier.emplace(startPos, pos, 1);
         int64_t edgeCount = 0;
 
+        int8_t currentArea = -1;
         while (!frontier.empty()) {
-            const auto [prevPos, curPos, steps] = frontier.front();
+            const auto [prevPos, curPos, steps, frontierArea] = frontier.top();
             frontier.pop();
+
+            if (currentArea == -1) {
+                currentArea = hikingArea[prevPos];
+            }
+            if (currentArea == -1) {
+                currentArea = hikingArea[curPos];
+            }
+            if (currentArea == -1) {
+                if (hikingMap[curPos] == '.') {
+                    currentArea = ++area;
+                }
+            }
+            if (hikingArea[curPos] == -1) {
+                if (hikingMap[curPos] == '.') {
+                    hikingArea[curPos] = currentArea;
+                }
+            } else if (hikingArea[curPos] != currentArea) {
+                fmt::print("Area mismatch! {} vs. {}\n", hikingArea[curPos], currentArea);
+            }
 
             switch (hikingMap[curPos]) {
             case 'E':
                 vertices[startPos].edgeTo.emplace(startPos, curPos, steps);
                 vertices[curPos].edgeFrom.emplace(startPos, curPos, steps);
+                currentArea = -1;
                 ++edgeCount;
                 break;
             case '>':
                 if (curPos - prevPos == neighbours4[0]) {
                     vertices[startPos].edgeTo.emplace(startPos, curPos, steps);
                     vertices[curPos].edgeFrom.emplace(startPos, curPos, steps);
+                    currentArea = -1;
                     ++edgeCount;
                 }
                 break;
@@ -117,6 +145,7 @@ struct Island {
                 if (curPos - prevPos == neighbours4[3]) {
                     vertices[startPos].edgeTo.emplace(startPos, curPos, steps);
                     vertices[curPos].edgeFrom.emplace(startPos, curPos, steps);
+                    currentArea = -1;
                     ++edgeCount;
                 }
                 break;
@@ -142,20 +171,25 @@ struct Island {
 
     void findUndirectedPaths(const Vec2l &startPos) {
         std::queue<Edge> frontier{};
-        frontier.emplace(startPos, startPos, 0);
+        frontier.emplace(startPos, startPos, 0, -1);
         int64_t edgeCount = 0;
 
         while (!frontier.empty()) {
-            const auto [prevPos, curPos, steps] = frontier.front();
+            const auto [prevPos, curPos, steps, frontierArea] = frontier.front();
             frontier.pop();
+
+            int8_t area = hikingArea[prevPos];
+            if (area == -1) {
+                area = hikingArea[curPos];
+            }
 
             switch (curPos == startPos ? '.' : hikingMap[curPos]) {
             case 'S':
             case 'E':
             case '>':
             case 'v':
-                vertices[startPos].unEdgeTo.emplace(startPos, curPos, steps);
-                vertices[curPos].unEdgeFrom.emplace(startPos, curPos, steps);
+                vertices[startPos].unEdgeTo.emplace(startPos, curPos, steps, area);
+                vertices[curPos].unEdgeFrom.emplace(startPos, curPos, steps, area);
                 ++edgeCount;
                 break;
             case '.':
@@ -231,23 +265,29 @@ struct Island {
     }
 
     int64_t findUpslopePath() const {
-        std::unordered_set<Vec2l> visited{};
-        return dfs2(startHiking, visited);
+        std::unordered_set<int8_t> visitedArea{};
+        int64_t maxUpslopePath = 0;
+        dfs2(startHiking, visitedArea, maxUpslopePath, 0, "");
+        return maxUpslopePath;
     }
 
-    int64_t dfs2(const Vec2l &position, std::unordered_set<Vec2l> &visited) const {
-        int64_t result = 0;
+    void dfs2(const Vec2l &position, std::unordered_set<int8_t> &visitedArea,
+              int64_t &maxUpslopePath, const int64_t distance, const std::string &path) const {
         for (const auto &edge : vertices.at(position).unEdgeTo) {
             const auto &nextPos = edge.to;
             if (nextPos == endHiking) {
-                result = std::max(result, edge.len);
-            } else if (!visited.contains(nextPos)) {
-                visited.insert(nextPos);
-                result = std::max(result, dfs2(edge.to, visited) + edge.len);
-                visited.erase(nextPos);
+                const auto pathLen = distance + edge.len;
+                if (pathLen > maxUpslopePath) {
+                    fmt::print("Current largest path lenght is {}\n", pathLen);
+                    maxUpslopePath = pathLen;
+                }
+            } else if (!visitedArea.contains(edge.area)) {
+                visitedArea.insert(edge.area);
+                dfs2(nextPos, visitedArea, maxUpslopePath, distance + edge.len,
+                     path + static_cast<char>(edge.area - 1 + 'a'));
+                visitedArea.erase(edge.area);
             }
         }
-        return result;
     }
 
     Island(const char *file)
@@ -260,6 +300,23 @@ struct Island {
         sortVertices();
         fmt::print("The graph has {} vertices\n", vertices.size());
     }
+
+    void printAreaMap() const {
+        for (const auto y : iota(0, hikingMap.height)) {
+            for (const auto x : iota(0, hikingMap.width)) {
+                if (hikingMap[x, y] != '.') {
+                    std::cout << hikingMap[x, y];
+                } else {
+                    std::cout << static_cast<char>(hikingArea[x, y] - 1 + 'a');
+                }
+            }
+            std::cout << "    ";
+            for (const auto x : iota(0, hikingMap.width)) {
+                std::cout << static_cast<char>(hikingArea[x, y] - 1 + 'a');
+            }
+            std::cout << '\n';
+        }
+    }
 };
 
 int main(int argc, char **argv) {
@@ -270,5 +327,8 @@ int main(int argc, char **argv) {
 
     Island snowIsland{argv[1]};
 
+    // snowIsland.printAreaMap();
+
     fmt::print("The longest path has {} steps\n", snowIsland.findLongestPath());
+    fmt::print("Going upslope, too, you take {} steps\n", snowIsland.findUpslopePath());
 }
