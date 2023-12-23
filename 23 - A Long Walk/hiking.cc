@@ -266,28 +266,24 @@ struct Island {
 
     int64_t findUpslopePath() const {
         std::unordered_set<int8_t> visitedArea{};
-        int64_t maxUpslopePath = 0;
-        dfs2(startHiking, visitedArea, maxUpslopePath, 0, "");
-        return maxUpslopePath;
+        return dfs2(startHiking, visitedArea, 0);
     }
 
-    void dfs2(const Vec2l &position, std::unordered_set<int8_t> &visitedArea,
-              int64_t &maxUpslopePath, const int64_t distance, const std::string &path) const {
+    int64_t dfs2(const Vec2l &position, std::unordered_set<int8_t> &visitedArea,
+                 const int64_t distance) const {
+        int64_t result{0};
         for (const auto &edge : vertices.at(position).unEdgeTo) {
             const auto &nextPos = edge.to;
             if (nextPos == endHiking) {
                 const auto pathLen = distance + edge.len;
-                if (pathLen > maxUpslopePath) {
-                    fmt::print("Current largest path lenght is {}\n", pathLen);
-                    maxUpslopePath = pathLen;
-                }
+                return pathLen;
             } else if (!visitedArea.contains(edge.area)) {
                 visitedArea.insert(edge.area);
-                dfs2(nextPos, visitedArea, maxUpslopePath, distance + edge.len,
-                     path + static_cast<char>(edge.area - 1 + 'a'));
+                result = std::max(result, dfs2(nextPos, visitedArea, distance + edge.len));
                 visitedArea.erase(edge.area);
             }
         }
+        return result;
     }
 
     Island(const char *file)
