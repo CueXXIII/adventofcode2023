@@ -107,20 +107,14 @@ int main(int argc, char **argv) {
     fmt::print("{} intersections occur within the test area\n\n", count1);
 
     fmt::print("sage:\n");
-    fmt::print("t0, t1, t2, mRx, mRy, mRz, bRx, bRy, bRz = "
-               "var('t0', 't1', 't2', 'mRx', 'mRy', 'mRz', 'bRx', 'bRy', 'bRz')\n");
+    fmt::print("t0, t1, t2, mRx, mRy, mRz, bRx, bRy, bRz, answer = "
+               "var('t0', 't1', 't2', 'mRx', 'mRy', 'mRz', 'bRx', 'bRy', 'bRz', 'answer')\n");
     fmt::print("solve([");
-    bool first = true;
     for (const auto idx : iota(0, 3)) {
         const auto &hail = weather[idx];
-        if (first) {
-            first = false;
-        } else {
-            fmt::print(", ");
-        }
         fmt::print("{}*t{}+{} == mRx*t{}+bRx, ", hail.dir.x, idx, hail.pos.x, idx);
         fmt::print("{}*t{}+{} == mRy*t{}+bRy, ", hail.dir.y, idx, hail.pos.y, idx);
-        fmt::print("{}*t{}+{} == mRz*t{}+bRz", hail.dir.z, idx, hail.pos.z, idx);
+        fmt::print("{}*t{}+{} == mRz*t{}+bRz, ", hail.dir.z, idx, hail.pos.z, idx);
     }
-    fmt::print("], t0, t1, t2, mRx, mRy, mRz, bRx, bRy, bRz)\n");
+    fmt::print("answer == bRx+bRy+bRz], t0, t1, t2, mRx, mRy, mRz, bRx, bRy, bRz, answer)\n");
 }
