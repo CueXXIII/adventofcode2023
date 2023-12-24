@@ -36,8 +36,10 @@ struct Hailstone {
         return {static_cast<double>(v.x), static_cast<double>(v.y)};
     }
     bool intersectXY(const Hailstone other, bool isExample) const {
-        fmt::print("Hailstone A: {} @ {}\n", pos, dir);
-        fmt::print("Hailstone B: {} @ {}\n", other.pos, other.dir);
+        if (isExample) {
+            fmt::print("Hailstone A: {} @ {}\n", pos, dir);
+            fmt::print("Hailstone B: {} @ {}\n", other.pos, other.dir);
+        }
         const auto m1 = dVec(dir);
         const auto b1 = dVec(pos);
         const auto m2 = dVec(other.dir);
@@ -45,33 +47,39 @@ struct Hailstone {
 
         const auto div = m1.y * m2.x - m1.x * m2.y;
         if (div == 0) {
-            fmt::print("Hailstones' paths are parallel; they never intersect.\n\n");
+            if (isExample) {
+                fmt::print("Hailstones' paths are parallel; they never intersect.\n\n");
+            }
             return false;
         }
         const auto t2 = (m1.x * (b2.y - b1.y) - m1.y * (b2.x - b1.x)) / div;
         const auto t1 = (m2.x * (b1.y - b2.y) - m2.y * (b1.x - b2.x)) / (div * -1);
         if (t2 < 0) {
-            if (t1 < 0) {
-                fmt::print("Hailstones' paths crossed in the past for both hailstones.\n\n");
-                return false;
+            if (isExample) {
+                if (t1 < 0) {
+                    fmt::print("Hailstones' paths crossed in the past for both hailstones.\n\n");
+                } else {
+                    fmt::print("Hailstones' paths crossed in the past for hailstone B.\n\n");
+                }
             }
-            fmt::print("Hailstones' paths crossed in the past for hailstone B.\n\n");
             return false;
         }
         if (t1 < 0) {
-            fmt::print("Hailstones' paths crossed in the past for hailstone A.\n\n");
+            if (isExample) {
+                fmt::print("Hailstones' paths crossed in the past for hailstone A.\n\n");
+            }
             return false;
         }
         const auto i = m2 * t2 + b2;
         bool inside;
         if (isExample) {
             inside = (i.x >= 7 and i.x <= 27 and i.y >= 7 and i.y <= 27);
+            fmt::print("Hailstones' paths will cross {} the test area (at {}).\n\n",
+                       inside ? "inside" : "outside", i);
         } else {
             inside = (i.x >= 200000000000000 and i.x <= 400000000000000 and
                       i.y >= 200000000000000 and i.y <= 400000000000000);
         }
-        fmt::print("Hailstones' paths will cross {} the test area (at {}).\n\n",
-                   inside ? "inside" : "outside", i);
         return inside;
     }
 };
@@ -96,5 +104,23 @@ int main(int argc, char **argv) {
             }
         }
     }
-    fmt::print("{} intersections occur within the test area\n", count1);
+    fmt::print("{} intersections occur within the test area\n\n", count1);
+
+    fmt::print("sage:\n");
+    fmt::print("t0, t1, t2, mRx, mRy, mRz, bRx, bRy, bRz = "
+               "var('t0', 't1', 't2', 'mRx', 'mRy', 'mRz', 'bRx', 'bRy', 'bRz')\n");
+    fmt::print("solve([");
+    bool first = true;
+    for (const auto idx : iota(0, 3)) {
+        const auto &hail = weather[idx];
+        if (first) {
+            first = false;
+        } else {
+            fmt::print(", ");
+        }
+        fmt::print("{}*t{}+{} == mRx*t{}+bRx, ", hail.dir.x, idx, hail.pos.x, idx);
+        fmt::print("{}*t{}+{} == mRy*t{}+bRy, ", hail.dir.y, idx, hail.pos.y, idx);
+        fmt::print("{}*t{}+{} == mRz*t{}+bRz", hail.dir.z, idx, hail.pos.z, idx);
+    }
+    fmt::print("], t0, t1, t2, mRx, mRy, mRz, bRx, bRy, bRz)\n");
 }
