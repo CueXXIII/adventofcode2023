@@ -10,40 +10,40 @@ template <typename num> struct Vec2 {
     num y{};
 
     constexpr Vec2() noexcept = default;
-    constexpr Vec2(const num &x, const num &y) noexcept : x(x), y(y) {}
+    constexpr Vec2(num const x, num const y) noexcept : x(x), y(y) {}
 
-    constexpr bool operator==(const Vec2 &other) const { return x == other.x && y == other.y; }
-    constexpr Vec2 &operator+=(const Vec2 &other) {
+    constexpr bool operator==(Vec2 const &other) const { return x == other.x && y == other.y; }
+    constexpr Vec2 &operator+=(Vec2 const &other) {
         x += other.x;
         y += other.y;
         return *this;
     }
-    constexpr Vec2 &operator-=(const Vec2 &other) {
+    constexpr Vec2 &operator-=(Vec2 const &other) {
         x -= other.x;
         y -= other.y;
         return *this;
     }
-    constexpr Vec2 &operator*=(const num factor) {
+    constexpr Vec2 &operator*=(num const factor) {
         x *= factor;
         y *= factor;
         return *this;
     }
 
-    constexpr Vec2 operator+(const Vec2 &other) const { return Vec2{*this} += other; }
-    constexpr Vec2 operator-(const Vec2 &other) const { return Vec2{*this} -= other; }
-    constexpr Vec2 operator*(const num factor) const { return Vec2{*this} *= factor; }
+    constexpr Vec2 operator+(Vec2 const &other) const { return Vec2{*this} += other; }
+    constexpr Vec2 operator-(Vec2 const &other) const { return Vec2{*this} -= other; }
+    constexpr Vec2 operator*(num const factor) const { return Vec2{*this} *= factor; }
 
-    constexpr auto operator<=>(const Vec2 &other) const {
+    constexpr auto operator<=>(Vec2 const &other) const {
         return std::pair(x, y) <=> std::pair(other.x, other.y);
     }
 
-    friend constexpr std::ostream &operator<<(std::ostream &out, const Vec2 &vec) {
+    friend constexpr std::ostream &operator<<(std::ostream &out, Vec2 const &vec) {
         return out << "(" << vec.x << ", " << vec.y << ")";
     }
 };
 
 template <typename num> struct std::hash<Vec2<num>> {
-    constexpr std::size_t operator()(const Vec2<num> &v) const noexcept {
+    constexpr std::size_t operator()(Vec2<num> const &v) const noexcept {
         return std::hash<int64_t>{}(
             (static_cast<int64_t>(v.x) << 16 ^ static_cast<int64_t>(v.x) >> 48) ^
             static_cast<int64_t>(v.y));
@@ -62,7 +62,7 @@ template <typename num> struct fmt::formatter<Vec2<num>> {
         return it;
     }
     template <typename FormatContext>
-    constexpr auto format(const Vec2<num> &vec, FormatContext &ctx) const -> decltype(ctx.out()) {
+    constexpr auto format(Vec2<num> const &vec, FormatContext &ctx) const -> decltype(ctx.out()) {
         return fmt::format_to(ctx.out(), "({}, {})", vec.x, vec.y);
     }
 };
@@ -80,7 +80,7 @@ template <typename iter>
 concept isVec2Iterable = is_instantiation_of<Vec2, typename iter::value_type>::value;
 
 template <typename iterable>
-constexpr auto boundingBox(const iterable &container)
+constexpr auto boundingBox(iterable const &container)
     requires isVec2Iterable<iterable>
 {
     auto it = container.begin();

@@ -6,14 +6,14 @@
 #include "vec3.hpp"
 
 template <typename VEC> class ScanLocations {
-    const VEC position{};
-    const VEC direction{};
-    const VEC minCorner{};
-    const VEC maxCorner{};
+    VEC const position{};
+    VEC const direction{};
+    VEC const minCorner{};
+    VEC const maxCorner{};
 
   public:
-    ScanLocations(const VEC &position, const VEC &direction, const VEC &minCorner,
-                  const VEC &maxCorner)
+    ScanLocations(VEC const &position, VEC const &direction, VEC const &minCorner,
+                  VEC const &maxCorner)
         : position(position), direction(direction), minCorner(minCorner), maxCorner(maxCorner) {}
 
     class sentinel {};
@@ -25,18 +25,18 @@ template <typename VEC> class ScanLocations {
         using value_type = VEC;
 
         VEC current;
-        const ScanLocations &limits;
+        ScanLocations const &limits;
 
-        template <typename T> constexpr bool isBelow(const Vec2<T> &a, const Vec2<T> &b) const {
+        template <typename T> constexpr bool isBelow(Vec2<T> const &a, Vec2<T> const &b) const {
             return a.x < b.x or a.y < b.y;
         }
 
-        template <typename T> constexpr bool isBelow(const Vec3<T> &a, const Vec3<T> &b) const {
+        template <typename T> constexpr bool isBelow(Vec3<T> const &a, Vec3<T> const &b) const {
             return a.x < b.x or a.y < b.y or a.z < b.z;
         }
 
       public:
-        iterator(const ScanLocations &scanner) : current(scanner.position), limits(scanner) {}
+        iterator(ScanLocations const &scanner) : current(scanner.position), limits(scanner) {}
         bool operator==(sentinel) const {
             return isBelow(current, limits.minCorner) or isBelow(limits.maxCorner, current);
         }

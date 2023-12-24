@@ -15,19 +15,19 @@ template <typename T> struct Grid {
     T outside{};
     int64_t width{};
     int64_t height{};
-    const T empty{};
+    T const empty{};
 
-    constexpr bool validPos(const Vec2<int64_t> &pos) const { return validPos(pos.x, pos.y); }
-    constexpr bool validPos(const int64_t x, const int64_t y) const {
+    constexpr bool validPos(Vec2<int64_t> const &pos) const { return validPos(pos.x, pos.y); }
+    constexpr bool validPos(int64_t const x, int64_t const y) const {
         return x >= 0 and y >= 0 and x < width and y < height;
     }
-    constexpr size_t index(const Vec2<int64_t> &pos) const { return index(pos.x, pos.y); }
-    constexpr size_t index(const int64_t x, const int64_t y) const {
+    constexpr size_t index(Vec2<int64_t> const &pos) const { return index(pos.x, pos.y); }
+    constexpr size_t index(int64_t const x, int64_t const y) const {
         return static_cast<size_t>(x + y * width);
     }
 
     constexpr Grid() = default;
-    constexpr Grid(const char *filename, T empty = T{}) : empty(empty) {
+    constexpr Grid(char const *filename, T const empty = T{}) : empty(empty) {
         std::ifstream infile{filename};
         std::string line;
         while (std::getline(infile, line)) {
@@ -37,39 +37,40 @@ template <typename T> struct Grid {
             data.insert(data.end(), line.begin(), line.end());
         }
     }
-    constexpr Grid(int64_t width, int64_t height, T value = T{}, T empty = T{})
+    constexpr Grid(int64_t const width, int64_t const height, T const value = T{},
+                   T const empty = T{})
         : width(width), height(height), empty(empty) {
         data.resize(width * height, value);
     }
 
     // access by [x, y]
-    constexpr const T &operator[](const int64_t x, const int64_t y) const {
+    constexpr T const &operator[](int64_t const x, int64_t const y) const {
         if (!validPos(x, y)) {
             return empty;
         }
         return data[index(x, y)];
     }
-    constexpr T &operator[](const int64_t x, const int64_t y) {
+    constexpr T &operator[](int64_t const x, int64_t const y) {
         if (!validPos(x, y)) {
             return outside = empty;
         }
         return data[index(x, y)];
     }
     // access by [Vec2]
-    constexpr const T &operator[](const Vec2<int64_t> p) const {
+    constexpr T const &operator[](Vec2<int64_t> const p) const {
         if (!validPos(p)) {
             return empty;
         }
         return data[index(p)];
     }
-    constexpr T &operator[](const Vec2<int64_t> p) {
+    constexpr T &operator[](Vec2<int64_t> const p) {
         if (!validPos(p)) {
             return outside = empty;
         }
         return data[index(p)];
     }
 
-    constexpr bool operator==(const Grid &other) const {
+    constexpr bool operator==(Grid const &other) const {
         if (width != other.width or height != other.height or empty != other.empty) {
             return false;
         }
@@ -77,8 +78,8 @@ template <typename T> struct Grid {
     }
 
     void print() const {
-        for (const auto y : std::views::iota(0, height)) {
-            for (const auto x : std::views::iota(0, width)) {
+        for (auto const y : std::views::iota(0, height)) {
+            for (auto const x : std::views::iota(0, width)) {
                 std::cout << (*this)[x, y];
             }
             std::cout << '\n';
@@ -91,9 +92,9 @@ template <typename T>
 concept GridDataCastable32 = requires(T x) { static_cast<uint32_t>(x); };
 
 template <GridDataCastable32 T> struct std::hash<Grid<T>> {
-    constexpr std::size_t operator()(const Grid<T> &g) const noexcept {
+    constexpr std::size_t operator()(Grid<T> const &g) const noexcept {
         std::size_t seed = g.data.size();
-        for (const auto xval : g.data) {
+        for (auto const xval : g.data) {
             auto x = static_cast<uint32_t>(xval);
             x = ((x >> 16) ^ x) * 0x45d9f3b;
             x = ((x >> 16) ^ x) * 0x45d9f3b;
@@ -116,9 +117,9 @@ template <typename T> struct fmt::formatter<Grid<T>> {
         return it;
     }
     template <typename FormatContext>
-    constexpr auto format(const Grid<T> &grid, FormatContext &ctx) const -> decltype(ctx.out()) {
-        for (const auto y : std::ranges::views::iota(0, grid.height)) {
-            for (const auto x : std::ranges::views::iota(0, grid.width)) {
+    constexpr auto format(Grid<T> const &grid, FormatContext &ctx) const -> decltype(ctx.out()) {
+        for (auto const y : std::ranges::views::iota(0, grid.height)) {
+            for (auto const x : std::ranges::views::iota(0, grid.width)) {
                 fmt::format_to(ctx.out(), "{}", grid[x, y]);
             }
             fmt::format_to(ctx.out(), "\n");

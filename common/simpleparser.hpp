@@ -38,20 +38,20 @@ class SimpleParser {
     }
 
     char bufferGet() {
-        const auto c = bufferPeek();
+        auto const c = bufferPeek();
         bufferNextChar();
         return c;
     }
 
   public:
     SimpleParser(std::ifstream &);
-    SimpleParser(const char *);
+    SimpleParser(char const *);
 
     bool isEof() const;
     bool isEol() const;
 
     int64_t getInt64();
-    std::string getToken(const char terminate = '\0');
+    std::string getToken(char const terminate = '\0');
     std::string getAlNum();
     std::string getLine();
 
@@ -59,8 +59,8 @@ class SimpleParser {
     char peekChar();
 
     void skipWhitespace();
-    bool skipChar(const char);
-    bool skipToken(const std::string &);
+    bool skipChar(char const);
+    bool skipToken(std::string const &);
 };
 
 SimpleParser::SimpleParser(std::ifstream &stream)
@@ -69,7 +69,7 @@ SimpleParser::SimpleParser(std::ifstream &stream)
     eol = false;
 }
 
-SimpleParser::SimpleParser(const char *infile)
+SimpleParser::SimpleParser(char const *infile)
     : localStream(std::ifstream(infile)), in(localStream), buffer(""), pos(0), eof(false),
       eol(false) {
     bufferSaturate();
@@ -79,14 +79,14 @@ SimpleParser::SimpleParser(const char *infile)
 int64_t SimpleParser::getInt64() {
     skipWhitespace();
     size_t processed;
-    const int64_t value = std::stoll(buffer.substr(pos), &processed);
+    int64_t const value = std::stoll(buffer.substr(pos), &processed);
     eol = false;
     pos += processed;
     bufferSaturate();
     return value;
 }
 
-std::string SimpleParser::getToken(const char terminate) {
+std::string SimpleParser::getToken(char const terminate) {
     skipWhitespace();
     auto end = pos;
     while (end < buffer.size() && !std::isspace(buffer[end]) && buffer[end] != terminate) {
@@ -128,7 +128,7 @@ bool SimpleParser::isEol() const { return eol; }
 char SimpleParser::getChar() {
     skipWhitespace();
     if (!eof) {
-        const auto c = buffer[pos];
+        auto const c = buffer[pos];
         bufferNextChar();
         return c;
     }
@@ -149,7 +149,7 @@ void SimpleParser::skipWhitespace() {
     }
 }
 
-bool SimpleParser::skipChar(const char c) {
+bool SimpleParser::skipChar(char const c) {
     skipWhitespace();
     if (!eof && buffer[pos] == c) {
         bufferNextChar();
@@ -159,7 +159,7 @@ bool SimpleParser::skipChar(const char c) {
 }
 
 // If token follows in the input, skip over it and return true
-bool SimpleParser::skipToken(const std::string &token) {
+bool SimpleParser::skipToken(std::string const &token) {
     skipWhitespace();
     if (buffer.find(token.data(), pos, token.size()) == pos) {
         pos += token.size();

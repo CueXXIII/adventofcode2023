@@ -13,49 +13,49 @@ template <typename num> struct Vec3 {
     num z{};
 
     constexpr Vec3() noexcept = default;
-    constexpr Vec3(const num &x, const num &y, const num &z) noexcept : x(x), y(y), z(z) {}
-    constexpr Vec3(const Vec2<num> &v, num z) noexcept : x(v.x), y(v.y), z(z) {}
+    constexpr Vec3(num const x, num const y, num const z) noexcept : x(x), y(y), z(z) {}
+    constexpr Vec3(Vec2<num> const &v, num const z) noexcept : x(v.x), y(v.y), z(z) {}
 
-    constexpr bool operator==(const Vec3 &other) const {
+    constexpr bool operator==(Vec3 const &other) const {
         return x == other.x && y == other.y && z == other.z;
     }
-    constexpr Vec3 &operator+=(const Vec3 &other) {
+    constexpr Vec3 &operator+=(Vec3 const &other) {
         x += other.x;
         y += other.y;
         z += other.z;
         return *this;
     }
-    constexpr Vec3 &operator-=(const Vec3 &other) {
+    constexpr Vec3 &operator-=(Vec3 const &other) {
         x -= other.x;
         y -= other.y;
         z -= other.z;
         return *this;
     }
-    constexpr Vec3 &operator*=(const num factor) {
+    constexpr Vec3 &operator*=(num const factor) {
         x *= factor;
         y *= factor;
         z *= factor;
         return *this;
     }
-    constexpr Vec3 &operator/=(const num divisor) {
+    constexpr Vec3 &operator/=(num const divisor) {
         x /= divisor;
         y /= divisor;
         z /= divisor;
         return *this;
     }
 
-    constexpr Vec3 operator+(const Vec3 &other) const { return Vec3{*this} += other; }
-    constexpr Vec3 operator-(const Vec3 &other) const { return Vec3{*this} -= other; }
-    constexpr Vec3 operator*(const num factor) const { return Vec3{*this} *= factor; }
-    constexpr Vec3 operator/(const num divisor) const { return Vec3{*this} /= divisor; }
+    constexpr Vec3 operator+(Vec3 const &other) const { return Vec3{*this} += other; }
+    constexpr Vec3 operator-(Vec3 const &other) const { return Vec3{*this} -= other; }
+    constexpr Vec3 operator*(num const factor) const { return Vec3{*this} *= factor; }
+    constexpr Vec3 operator/(num const divisor) const { return Vec3{*this} /= divisor; }
 
-    friend constexpr std::ostream &operator<<(std::ostream &out, const Vec3 &vec) {
+    friend constexpr std::ostream &operator<<(std::ostream &out, Vec3 const &vec) {
         return out << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
     }
 };
 
 template <typename num> struct std::hash<Vec3<num>> {
-    constexpr std::size_t operator()(const Vec3<num> &v) const noexcept {
+    constexpr std::size_t operator()(Vec3<num> const &v) const noexcept {
         return std::hash<num>{}(v.x) * 2 + std::hash<num>{}(v.y) * 1627 +
                std::hash<num>{}(v.z) * 2642257;
     }
@@ -73,7 +73,7 @@ template <typename num> struct fmt::formatter<Vec3<num>> {
         return it;
     }
     template <typename FormatContext>
-    constexpr auto format(const Vec3<num> &vec, FormatContext &ctx) const -> decltype(ctx.out()) {
+    constexpr auto format(Vec3<num> const &vec, FormatContext &ctx) const -> decltype(ctx.out()) {
         return fmt::format_to(ctx.out(), "({}, {}, {})", vec.x, vec.y, vec.z);
     }
 };
