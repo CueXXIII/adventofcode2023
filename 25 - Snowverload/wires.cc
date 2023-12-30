@@ -6,7 +6,7 @@
 #include <ranges>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "simpleparser.hpp"
@@ -23,14 +23,6 @@ struct Id {
     std::unordered_map<std::string, type> mapping{};
     std::vector<std::string> names{};
 
-    constexpr type get(std::string const &name) const {
-        if (mapping.contains(name)) {
-            return mapping.at(name);
-        } else {
-            fmt::print("vertex {} not found\n", name);
-            return -1;
-        }
-    }
     constexpr type get(std::string const &name) {
         if (mapping.contains(name)) {
             return mapping[name];
@@ -96,8 +88,8 @@ struct Graph {
     }
 
     // Karger's algorithm, constraint to succeed at 3 edges
-    static bool contract(std::unordered_map<Vertex, int64_t> vertices, std::vector<Edge> edges,
-                         int64_t lastVerticeId) {
+    bool contract(std::unordered_map<Vertex, int64_t> vertices, std::vector<Edge> edges,
+                  int64_t lastVerticeId) const {
         while (vertices.size() > 2) {
             auto const &randomEdge = chooseRandomEdge(edges);
 
@@ -107,6 +99,7 @@ struct Graph {
             vertices.erase(randomEdge.v2);
 
             std::vector<Edge> newEdges{};
+            newEdges.reserve(edges.size() - 1);
             for (Edge const &edge : edges) {
                 if (randomEdge.adjacent(edge.v1)) {
                     if (!randomEdge.adjacent(edge.v2)) {
@@ -120,11 +113,15 @@ struct Graph {
             }
             edges = std::move(newEdges);
         }
-        fmt::print("Left with {} edges, {} vertices\n", edges.size(), vertices.size());
+        // fmt::print("Left with {} edges, {} vertices\n", edges.size(), vertices.size());
         if (edges.size() <= 3) {
             int64_t prod = 1;
             for (auto const &[name, vertexCount] : vertices) {
-                fmt::print("#{}: {} vertices\n", name, vertexCount);
+                if (std::cmp_less(name, vertexIds.size())) {
+                    fmt::print("#{}: {} vertices\n", vertexIds.str(name), vertexCount);
+                } else {
+                    fmt::print("#{}: {} vertices\n", name, vertexCount);
+                }
                 prod *= vertexCount;
             }
             fmt::print("Cut wires according to plan {}\n", prod);
@@ -132,15 +129,24 @@ struct Graph {
         return edges.size() <= 3;
     }
 
-    void find3Cut() const {
+    void find3Cut(bool const benchmark = false) const {
         std::unordered_map<Vertex, int64_t> contractedVertices{};
         for (auto const &vertex : iota(Vertex{1}, static_cast<Vertex>(vertexIds.size() + 1))) {
             contractedVertices[vertex] = 1;
         }
-        int64_t run = 0;
-        do {
-            fmt::print("Try {}: ", ++run);
-        } while (!contract(contractedVertices, edges, vertexIds.size()));
+        int64_t success = 0;
+        int64_t const benchmark_runs = 10000;
+        for (int64_t run = 1; !benchmark || run <= benchmark_runs; ++run) {
+            // fmt::print("Try {}: ", run);
+            auto const result = contract(contractedVertices, edges, vertexIds.size());
+            if (result) {
+                ++success;
+                if (!benchmark) {
+                    return;
+                }
+            }
+        }
+        fmt::print("Succeeded {} times in {} tries\n", success, benchmark_runs);
     }
 };
 
